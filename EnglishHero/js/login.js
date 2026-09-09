@@ -28,113 +28,76 @@ const regEmailInput = document.getElementById("reg-email");
 const regPasswordInput = document.getElementById("reg-password");
 
 function showMessage(msg, isError = true) {
-  if (!authMessage) return;
-  authMessage.textContent = msg;
-  authMessage.className = `auth-msg ${isError ? 'error' : 'success'}`;
-  authMessage.classList.remove("hidden");
+  if (authMessage) {
+    authMessage.textContent = msg;
+    authMessage.className = `auth-msg ${isError ? 'error' : 'success'}`;
+    authMessage.classList.remove("hidden");
+  } else {
+    alert(msg);
+  }
 }
 
-function clearMessage() {
-  if (!authMessage) return;
-  authMessage.textContent = "";
-  authMessage.classList.add("hidden");
-}
-
-// 切換頁籤
+// 頁籤切換
 if (tabLogin && tabRegister) {
-  tabLogin.addEventListener("click", () => {
+  tabLogin.onclick = () => {
     tabLogin.classList.add("active");
     tabRegister.classList.remove("active");
-    loginForm.classList.remove("hidden");
-    registerForm.classList.add("hidden");
-    clearMessage();
-  });
+    if (loginForm) loginForm.classList.remove("hidden");
+    if (registerForm) registerForm.classList.add("hidden");
+  };
 
-  tabRegister.addEventListener("click", () => {
+  tabRegister.onclick = () => {
     tabRegister.classList.add("active");
     tabLogin.classList.remove("active");
-    registerForm.classList.remove("hidden");
-    loginForm.classList.add("hidden");
-    clearMessage();
-  });
+    if (registerForm) registerForm.classList.remove("hidden");
+    if (loginForm) loginForm.classList.add("hidden");
+  };
 }
 
-// 登入
+// 登入送出
 if (loginForm) {
-  loginForm.addEventListener("submit", (e) => {
+  loginForm.onsubmit = function (e) {
     e.preventDefault();
-    clearMessage();
-
     const email = loginEmailInput.value.trim();
     const password = loginPasswordInput.value;
 
     if (!email || !password) {
-      showMessage("請輸入電子郵件與密碼！", true);
+      alert("請輸入電子郵件與密碼！");
       return;
     }
 
-    showMessage("登入驗證中，請稍候...", false);
-
     auth.signInWithEmailAndPassword(email, password)
       .then((userCredential) => {
-        showMessage("登入成功！正在跳轉...", false);
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 600);
+        alert("登入成功！即將跳轉到首頁");
+        window.location.href = "index.html";
       })
       .catch((error) => {
-        console.error("登入錯誤：", error);
-        let errMsg = "登入失敗，請確認帳號密碼。";
-        if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
-          errMsg = "帳號或密碼錯誤，若尚未註冊請切換至「註冊帳號」。";
-        } else if (error.code === "auth/wrong-password") {
-          errMsg = "密碼錯誤，請重新確認。";
-        } else if (error.code === "auth/invalid-email") {
-          errMsg = "電子郵件格式不正確。";
-        } else {
-          errMsg = `登入失敗：${error.message}`;
-        }
-        showMessage(errMsg, true);
+        console.error("登入錯誤細節：", error);
+        alert(`登入失敗：${error.message}`);
       });
-  });
+  };
 }
 
-// 註冊
+// 註冊送出
 if (registerForm) {
-  registerForm.addEventListener("submit", (e) => {
+  registerForm.onsubmit = function (e) {
     e.preventDefault();
-    clearMessage();
-
     const email = regEmailInput.value.trim();
     const password = regPasswordInput.value;
 
     if (!email || !password) {
-      showMessage("請輸入電子郵件與密碼！", true);
+      alert("請輸入電子郵件與密碼！");
       return;
     }
 
-    showMessage("建立帳號中，請稍候...", false);
-
     auth.createUserWithEmailAndPassword(email, password)
       .then((userCredential) => {
-        showMessage("註冊成功！正在為您導向首頁...", false);
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 600);
+        alert("註冊成功！即將跳轉到首頁");
+        window.location.href = "index.html";
       })
       .catch((error) => {
-        console.error("註冊錯誤：", error);
-        let errMsg = "註冊失敗。";
-        if (error.code === "auth/email-already-in-use") {
-          errMsg = "此電子郵件已被註冊，請直接點選「登入」。";
-        } else if (error.code === "auth/weak-password") {
-          errMsg = "密碼強度不足，請至少輸入 6 位字元。";
-        } else if (error.code === "auth/invalid-email") {
-          errMsg = "電子郵件格式不正確。";
-        } else {
-          errMsg = `註冊失敗：${error.message}`;
-        }
-        showMessage(errMsg, true);
+        console.error("註冊錯誤細節：", error);
+        alert(`註冊失敗：${error.message}`);
       });
-  });
+  };
 }
