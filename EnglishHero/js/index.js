@@ -20,14 +20,13 @@ const btnLogout = document.getElementById("btn-logout");
 // 監聽登入狀態
 auth.onAuthStateChanged((user) => {
   if (user) {
-    // 取得 Email 前綴或名字
     const name = user.displayName || user.email.split("@")[0];
     if (userDisplay) {
       userDisplay.textContent = `👋 你好，${name}`;
     }
   } else {
-    // 未登入直接跳轉至登入頁
-    window.location.replace("login.html");
+    // 未登入時導向同層的登入頁
+    window.location.href = "login.html";
   }
 });
 
@@ -35,7 +34,7 @@ auth.onAuthStateChanged((user) => {
 if (btnLogout) {
   btnLogout.addEventListener("click", () => {
     auth.signOut().then(() => {
-      window.location.replace("login.html");
+      window.location.href = "login.html";
     });
   });
 }
