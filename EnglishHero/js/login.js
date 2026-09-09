@@ -130,3 +130,42 @@ registerForm.addEventListener("submit", (e) => {
       showMessage(errMsg, true);
     });
 });
+// 監聽「登入」表單送出
+loginForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  clearMessage();
+
+  const email = loginEmailInput.value.trim();
+  const password = loginPasswordInput.value;
+
+  if (!email || !password) {
+    showMessage("請輸入電子郵件與密碼！", true);
+    return;
+  }
+
+  // 設定持久化為 LOCAL（永久記住登入狀態）
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .then(() => {
+      return auth.signInWithEmailAndPassword(email, password);
+    })
+    .then((userCredential) => {
+      showMessage("登入成功！正在跳轉...", false);
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 500);
+    })
+    .catch((error) => {
+      console.error("登入失敗：", error);
+      let errMsg = "登入失敗，請確認帳號密碼。";
+      if (error.code === "auth/user-not-found") {
+        errMsg = "此帳號尚未註冊，請先切換至「註冊帳號」。";
+      } else if (error.code === "auth/wrong-password") {
+        errMsg = "密碼輸入錯誤，請重新確認。";
+      } else if (error.code === "auth/invalid-email") {
+        errMsg = "電子郵件格式不正確。";
+      } else {
+        errMsg = `登入錯誤：${error.message}`;
+      }
+      showMessage(errMsg, true);
+    });
+});
