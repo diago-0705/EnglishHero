@@ -14,7 +14,6 @@ if (!firebase.apps.length) {
 }
 const auth = firebase.auth();
 
-// DOM 元素
 const tabLogin = document.getElementById("tab-login");
 const tabRegister = document.getElementById("tab-register");
 const loginForm = document.getElementById("login-form");
@@ -23,7 +22,6 @@ const authMessage = document.getElementById("auth-message");
 
 const loginEmailInput = document.getElementById("login-email");
 const loginPasswordInput = document.getElementById("login-password");
-
 const regEmailInput = document.getElementById("reg-email");
 const regPasswordInput = document.getElementById("reg-password");
 
@@ -32,8 +30,13 @@ function showMessage(msg, isError = true) {
     authMessage.textContent = msg;
     authMessage.className = `auth-msg ${isError ? 'error' : 'success'}`;
     authMessage.classList.remove("hidden");
-  } else {
-    alert(msg);
+  }
+}
+
+function clearMessage() {
+  if (authMessage) {
+    authMessage.textContent = "";
+    authMessage.classList.add("hidden");
   }
 }
 
@@ -42,62 +45,97 @@ if (tabLogin && tabRegister) {
   tabLogin.onclick = () => {
     tabLogin.classList.add("active");
     tabRegister.classList.remove("active");
-    if (loginForm) loginForm.classList.remove("hidden");
-    if (registerForm) registerForm.classList.add("hidden");
+    loginForm.classList.remove("hidden");
+    registerForm.classList.add("hidden");
+    clearMessage();
   };
 
   tabRegister.onclick = () => {
     tabRegister.classList.add("active");
     tabLogin.classList.remove("active");
-    if (registerForm) registerForm.classList.remove("hidden");
-    if (loginForm) loginForm.classList.add("hidden");
+    registerForm.classList.remove("hidden");
+    loginForm.classList.add("hidden");
+    clearMessage();
   };
 }
 
-// 登入送出
+// 登入
 if (loginForm) {
   loginForm.onsubmit = function (e) {
     e.preventDefault();
+    clearMessage();
+
     const email = loginEmailInput.value.trim();
     const password = loginPasswordInput.value;
 
     if (!email || !password) {
-      alert("請輸入電子郵件與密碼！");
+      showMessage("請輸入電子郵件與密碼！", true);
       return;
     }
 
-    auth.signInWithEmailAndPassword(email, password)
+    showMessage("正在登入中...", false);
+
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => {
+        return auth.signInWithEmailAndPassword(email, password);
+      })
       .then((userCredential) => {
-        alert("登入成功！即將跳轉到首頁");
-        window.location.href = "index.html";
+        showMessage("登入成功！正在跳轉...", false);
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 600);
       })
       .catch((error) => {
-        console.error("登入錯誤細節：", error);
-        alert(`登入失敗：${error.message}`);
+        console.error("登入錯誤：", error);
+        let errMsg = "登入失敗，請確認帳號密碼。";
+        if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+          errMsg = "帳號或密碼錯誤，若尚未註冊請先切換至「註冊帳號」。";
+        } else if (error.code === "auth/wrong-password") {
+          errMsg = "密碼錯誤，請重新確認。";
+        } else if (error.code === "auth/invalid-email") {
+          errMsg = "電子郵件格式不正確。";
+        } else {
+          errMsg = `登入失敗：${error.message}`;
+        }
+        showMessage(errMsg, true);
       });
   };
 }
 
-// 註冊送出
+// 註冊
 if (registerForm) {
   registerForm.onsubmit = function (e) {
     e.preventDefault();
+    clearMessage();
+
     const email = regEmailInput.value.trim();
     const password = regPasswordInput.value;
 
     if (!email || !password) {
-      alert("請輸入電子郵件與密碼！");
+      showMessage("請輸入電子郵件與密碼！", true);
       return;
     }
 
+    showMessage("正在建立帳號...", false);
+
     auth.createUserWithEmailAndPassword(email, password)
       .then((userCredential) => {
-        alert("註冊成功！即將跳轉到首頁");
-        window.location.href = "index.html";
+        showMessage("註冊成功！正在為您跳轉...", false);
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 600);
       })
       .catch((error) => {
-        console.error("註冊錯誤細節：", error);
-        alert(`註冊失敗：${error.message}`);
+        console.error("註冊錯誤：", error);
+        let errMsg = "註冊失敗。";
+        if (error.code === "auth/email-already-in-use") {
+          errMsg = "此電子郵件已被註冊，請直接點選「登入」。";
+        } else if (error.code === "auth/weak-password") {
+          errMsg = "密碼長度不足，請至少設定 6 位字元。";
+        } else {
+          errMsg = `註冊失敗：${error.message}`;
+        }
+        showMessage(errMsg, true);
       });
   };
 }
