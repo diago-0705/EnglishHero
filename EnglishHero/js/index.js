@@ -17,16 +17,17 @@ const auth = firebase.auth();
 const userDisplay = document.getElementById("user-display");
 const btnLogout = document.getElementById("btn-logout");
 
-// 監聽登入狀態
+// 監聽登入狀態（加入明確判斷）
 auth.onAuthStateChanged((user) => {
   if (user) {
-    const name = user.displayName || user.email.split("@")[0];
+    // 已登入：顯示使用者 Email 前綴或名稱
+    const name = user.displayName || (user.email ? user.email.split("@")[0] : "學習者");
     if (userDisplay) {
       userDisplay.textContent = `👋 你好，${name}`;
     }
   } else {
-    // 未登入時導向同層的登入頁
-    window.location.href = "login.html";
+    // 確定未登入才跳轉
+    window.location.replace("login.html");
   }
 });
 
@@ -34,7 +35,7 @@ auth.onAuthStateChanged((user) => {
 if (btnLogout) {
   btnLogout.addEventListener("click", () => {
     auth.signOut().then(() => {
-      window.location.href = "login.html";
+      window.location.replace("login.html");
     });
   });
 }
