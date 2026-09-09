@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnglishHero - 登入 / 註冊</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+</head>
+<body class="auth-body">
+
+  <div class="auth-card">
+    <div class="brand">
+      <span class="logo">📚</span>
+      <h1>EnglishHero</h1>
+      <p class="subtitle">練就你的單字超能力</p>
+    </div>
+
+    <div class="tab-group">
+      <button id="tab-login" class="tab-btn active" type="button">登入</button>
+      <button id="tab-register" class="tab-btn" type="button">註冊帳號</button>
+    </div>
+
+    <div id="auth-message" class="auth-msg hidden"></div>
+
+    <form id="login-form" class="auth-form">
+      <div class="input-group">
+        <label for="login-email">電子郵件</label>
+        <input type="email" id="login-email" placeholder="example@email.com" required>
+      </div>
+      <div class="input-group">
+        <label for="login-password">密碼</label>
+        <input type="password" id="login-password" placeholder="至少 6 位密碼" required>
+      </div>
+      <button type="submit" class="btn-primary">登入</button>
+    </form>
+
+    <form id="register-form" class="auth-form hidden">
+      <div class="input-group">
+        <label for="reg-email">電子郵件</label>
+        <input type="email" id="reg-email" placeholder="example@email.com" required>
+      </div>
+      <div class="input-group">
+        <label for="reg-password">設定密碼</label>
+        <input type="password" id="reg-password" placeholder="至少 6 位密碼" minlength="6" required>
+      </div>
+      <button type="submit" class="btn-primary btn-register">建立新帳號</button>
+    </form>
+  </div>
+
+  <script src="js/login.js"></script>
+</body>
+</html>

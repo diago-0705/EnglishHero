@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Hero</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+
+<header class="main-header">
+  <div class="logo">📚 English Hero</div>
+  <div class="user-panel">
+    <span class="user-email" id="user-display-email">載入中...</span>
+    <button id="btn-logout" class="btn-logout" type="button">登出</button>
+  </div>
+</header>
+
+<div class="main-container">
+  <div class="welcome-box">
+    <h1>準備好提升英文實力了嗎？</h1>
+    <p>自訂專屬多層資料夾，高效率背誦與自選測驗！</p>
+  </div>
+
+  <div class="hero-actions-grid">
+    <!-- 按鈕 1：背單字 -->
+    <a href="study.html" class="action-hero-card primary-card">
+      <div class="card-badge">自主學習</div>
+      <div class="action-icon">📖</div>
+      <h2>背單字</h2>
+      <p>支援多層子資料夾管理、收錄單字與翻卡發音記憶</p>
+      <span class="btn-action">進入單字庫 ➔</span>
+    </a>
+
+    <!-- 按鈕 2：考單字 -->
+    <a href="quiz.html" class="action-hero-card secondary-card">
+      <div class="card-badge">實力測驗</div>
+      <div class="action-icon">✏️</div>
+      <h2>考單字</h2>
+      <p>自選指定資料夾（可包含子資料夾單字）進行隨堂測驗</p>
+      <span class="btn-action">開始測驗 ➔</span>
+    </a>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

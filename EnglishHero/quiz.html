@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Hero - 考單字</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+</head>
+<body class="study-body">
+
+  <header class="study-header">
+    <a href="index.html" class="btn-back">⬅ 回首頁</a>
+    <h1>✏️ 考單字測驗</h1>
+    <div style="width: 80px;"></div>
+  </header>
+
+  <main class="study-container">
+
+    <!-- 步驟 1：選擇要測驗的資料夾 -->
+    <section id="quiz-setup-card" class="quiz-card">
+      <h2>選擇測驗範圍</h2>
+      <p style="color:#64748b;margin:8px 0 20px;">請勾選想進行測驗的資料夾：</p>
+      
+      <div id="folder-checkbox-tree" class="folder-select-tree">
+        <!-- 動態列出所有資料夾供多選 -->
+      </div>
+
+      <div style="margin-top: 24px;">
+        <button id="btn-start-quiz" class="btn-primary-action" style="width: 100%; padding: 14px;">開始測驗</button>
+      </div>
+    </section>
+
+    <!-- 步驟 2：測驗進行中 -->
+    <section id="quiz-play-card" class="quiz-card hidden">
+      <div class="quiz-header-bar">
+        <span id="quiz-progress">第 1 / 10 題</span>
+        <span id="quiz-score">得分：0</span>
+      </div>
+
+      <div class="quiz-question-box">
+        <h3 id="quiz-question-word">question</h3>
+        <button id="btn-quiz-speak" class="btn-icon">🔊 聽發音</button>
+      </div>
+
+      <div id="quiz-options-container" class="quiz-options-grid">
+        <!-- 4 個選項按鈕 -->
+      </div>
+
+      <div id="quiz-feedback" class="quiz-feedback hidden"></div>
+      <button id="btn-next-question" class="btn-primary-action hidden" style="width:100%; margin-top:16px;">下一題 ➔</button>
+    </section>
+
+    <!-- 步驟 3：測驗結算畫面 -->
+    <section id="quiz-result-card" class="quiz-card hidden" style="text-align: center;">
+      <div style="font-size: 60px;">🏆</div>
+      <h2>測驗完成！</h2>
+      <p id="final-score-text" style="font-size: 22px; font-weight: bold; margin: 16px 0; color: #16a34a;">最終成績：100 分</p>
+      <button onclick="location.reload()" class="btn-primary-action" style="padding: 12px 24px;">再測一次</button>
+      <a href="index.html" class="btn-secondary-action" style="display:inline-block; margin-left:12px; padding: 12px 24px; text-decoration:none;">回首頁</a>
+    </section>
+
+  </main>
+
+  <script src="js/quiz.js"></script>
+</body>
+</html>
