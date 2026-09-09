@@ -9,33 +9,41 @@ const firebaseConfig = {
   measurementId: "G-TZTCS02SK6"
 };
 
+// 確保 Firebase 實例初始化
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 const auth = firebase.auth();
 
-const userDisplay = document.getElementById("user-display");
-const btnLogout = document.getElementById("btn-logout");
+// 監聽 DOM 載入與 Auth 狀態
+document.addEventListener("DOMContentLoaded", () => {
+  const userDisplay = document.getElementById("user-display");
+  const btnLogout = document.getElementById("btn-logout");
 
-// 監聽登入狀態（加入明確判斷）
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    // 已登入：顯示使用者 Email 前綴或名稱
-    const name = user.displayName || (user.email ? user.email.split("@")[0] : "學習者");
-    if (userDisplay) {
-      userDisplay.textContent = `👋 你好，${name}`;
+  auth.onAuthStateChanged((user) => {
+    console.log("當前使用者狀態：", user);
+    if (user) {
+      // 取得 Email 前綴或名稱
+      const emailName = user.email ? user.email.split("@")[0] : "使用者";
+      const displayName = user.displayName || emailName;
+      
+      if (userDisplay) {
+        userDisplay.textContent = `👋 你好，${displayName}`;
+      }
+    } else {
+      // 未登入才導向登入頁
+      window.location.replace("login.html");
     }
-  } else {
-    // 確定未登入才跳轉
-    window.location.replace("login.html");
+  });
+
+  // 登出按鈕事件
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      auth.signOut().then(() => {
+        window.location.replace("login.html");
+      }).catch((err) => {
+        console.error("登出失敗：", err);
+      });
+    });
   }
 });
-
-// 登出按鈕
-if (btnLogout) {
-  btnLogout.addEventListener("click", () => {
-    auth.signOut().then(() => {
-      window.location.replace("login.html");
-    });
-  });
-}
