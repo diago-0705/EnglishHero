@@ -6,65 +6,33 @@
   <title>English Hero - 背單字</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 遊戲區塊專屬樣式 */
-    .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-    .mode-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
-    .mode-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; }
-    .mode-tab.active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
-    
-    /* 填空模式 */
-    .fill-box { text-align: center; padding: 20px 0; }
-    .word-meaning { font-size: 24px; margin-bottom: 20px; font-weight: bold; color: #333; }
-    .fill-input { font-size: 20px; padding: 10px; width: 80%; max-width: 300px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 15px; }
-    .btn-submit { padding: 10px 30px; font-size: 18px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
-    .feedback { margin-top: 15px; font-size: 16px; font-weight: bold; height: 24px; }
-    
-    /* 配對模式 */
-    .match-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 10px; }
-    .match-card { padding: 20px 10px; text-align: center; background: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; user-select: none; }
-    .match-card:hover { background: #e5e7eb; }
-    .match-card.selected { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
-    .match-card.matched { visibility: hidden; } /* 配對成功直接隱藏 */
-    
-    .hidden { display: none; }
+    .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
+    .word-card { border: 2px solid #e5e7eb; background: #f9fafb; padding: 30px; border-radius: 10px; margin-bottom: 20px; transition: 0.3s; }
+    .word-card:hover { border-color: #3b82f6; background: #fff; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1); }
+    .en-word { font-size: 32px; font-weight: bold; color: #1d4ed8; margin-bottom: 10px; }
+    .ch-word { font-size: 20px; color: #4b5563; }
   </style>
 </head>
 <body class="dashboard-body">
 
 <header class="main-header">
-  <div class="logo">📚 English Hero</div>
+  <div class="logo">📚 English Hero - 背單字</div>
   <div class="user-panel">
     <a href="index.html" style="margin-right:15px; text-decoration:none; color:#333; font-weight:bold;">回首頁</a>
   </div>
 </header>
 
 <div class="study-container">
-  <!-- 模式切換按鈕 -->
-  <div class="mode-tabs">
-    <div id="tab-fill" class="mode-tab active">✏️ 填空練習</div>
-    <div id="tab-match" class="mode-tab">🎴 配對遊戲</div>
-  </div>
-
-  <!-- 填空練習區 -->
-  <div id="mode-fill" class="fill-box">
-    <div class="word-meaning" id="fill-question">載入中...</div>
-    <input type="text" id="fill-answer" class="fill-input" placeholder="請輸入英文單字" autocomplete="off">
-    <br>
-    <button id="btn-check-fill" class="btn-submit">送出對答案</button>
-    <div id="fill-feedback" class="feedback"></div>
-  </div>
-
-  <!-- 配對遊戲區 -->
-  <div id="mode-match" class="hidden">
-    <div style="text-align:center; margin-bottom:10px; color:#666;">請點擊英文與對應的中文配對</div>
-    <div id="match-board" class="match-grid">
-      <!-- 卡片會由 JavaScript 動態生成 -->
-    </div>
-    <div style="text-align:center; margin-top:15px;">
-      <button id="btn-reset-match" class="btn-submit hidden">再玩一次</button>
+  <h2 style="color: #333; margin-bottom: 5px;">單字瀏覽</h2>
+  <p style="color: #888; margin-bottom: 25px;">沒有時間壓力，慢慢看、慢慢背！</p>
+  
+  <!-- 這是未來要用 JavaScript 自動生成的字卡，先放一個當範例 -->
+  <div id="flashcard-container">
+    <div class="word-card">
+      <div class="en-word">abandon</div>
+      <div class="ch-word">放棄</div>
     </div>
   </div>
-
 </div>
 
 <!-- Firebase SDK -->
@@ -72,7 +40,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-<!-- 核心邏輯 -->
-<script src="js/study.js"></script>
+<script src="js/study.js?v=2"></script>
 </body>
 </html>
