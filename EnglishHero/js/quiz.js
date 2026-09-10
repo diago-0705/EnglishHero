@@ -14,12 +14,13 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let vocabularyList = [];
+let allWordsList = []; // 存放從雲端抓回來的全部單字
 
 const tabFill = document.getElementById("tab-fill");
 const tabMatch = document.getElementById("tab-match");
 const modeFill = document.getElementById("mode-fill");
 const modeMatch = document.getElementById("mode-match");
+const quizFolderSelect = document.getElementById("quiz-folder-select");
 
 const fillQuestion = document.getElementById("fill-question");
 const fillAnswer = document.getElementById("fill-answer");
@@ -31,31 +32,62 @@ const btnResetMatch = document.getElementById("btn-reset-match");
 
 auth.onAuthStateChanged((user) => {
   if (user) {
-    fetchUserData(user.uid);
+    fetchAllUserData(user.uid);
   } else {
     window.location.replace("login.html?v=2026");
   }
 });
 
-function fetchUserData(uid) {
+// 1. 載入使用者的全部單字與資料夾清單
+function fetchAllUserData(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
-      vocabularyList = [];
+      allWordsList = [];
+      const foldersSet = new Set();
+
       snapshot.forEach(doc => {
-        vocabularyList.push(doc.data());
+        const data = doc.data();
+        allWordsList.push(data);
+        if (data.folder) {
+          foldersSet.add(data.folder);
+        }
       });
 
-      if (vocabularyList.length === 0) {
+      // 建立資料夾下拉選單
+      quizFolderSelect.innerHTML = `<option value="ALL">全部資料夾 (綜合測驗)</option>`;
+      foldersSet.forEach(folderName => {
+        const opt = document.createElement("option");
+        opt.value = folderName;
+        opt.textContent = folderName;
+        quizFolderSelect.appendChild(opt);
+      });
+
+      if (allWordsList.length === 0) {
         fillQuestion.textContent = "單字庫為空，請先至「新增單字」建立單字！";
         return;
       }
 
-      startFillGame();
+      // 初始化開始測驗
+      initCurrentMode();
     })
     .catch((err) => {
       fillQuestion.textContent = "資料載入失敗：" + err.message;
     });
 }
+
+// 根據目前選擇的資料夾過濾單字
+function getFilteredWords() {
+  const selectedFolder = quizFolderSelect.value;
+  if (selectedFolder === "ALL") {
+    return allWordsList;
+  }
+  return allWordsList.filter(item => item.folder === selectedFolder);
+}
+
+// 切換資料夾時重新開始測驗
+quizFolderSelect.addEventListener("change", () => {
+  initCurrentMode();
+});
 
 // 模式切換
 tabFill.addEventListener("click", () => {
@@ -63,7 +95,7 @@ tabFill.addEventListener("click", () => {
   tabMatch.classList.remove("active");
   modeFill.classList.remove("hidden");
   modeMatch.classList.add("hidden");
-  startFillGame();
+  initCurrentMode();
 });
 
 tabMatch.addEventListener("click", () => {
@@ -71,18 +103,31 @@ tabMatch.addEventListener("click", () => {
   tabFill.classList.remove("active");
   modeMatch.classList.remove("hidden");
   modeFill.classList.add("hidden");
-  startMatchGame();
+  initCurrentMode();
 });
+
+function initCurrentMode() {
+  if (tabFill.classList.contains("active")) {
+    startFillGame();
+  } else {
+    startMatchGame();
+  }
+}
 
 // --- 填空邏輯 ---
 let currentFillWord = null;
 
 function startFillGame() {
-  if (vocabularyList.length === 0) return;
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) {
+    fillQuestion.textContent = "此資料夾中沒有單字！";
+    fillAnswer.value = "";
+    return;
+  }
   fillAnswer.value = "";
   fillFeedback.textContent = "";
-  const randomIndex = Math.floor(Math.random() * vocabularyList.length);
-  currentFillWord = vocabularyList[randomIndex];
+  const randomIndex = Math.floor(Math.random() * currentList.length);
+  currentFillWord = currentList[randomIndex];
   fillQuestion.textContent = currentFillWord.ch;
   fillAnswer.focus();
 }
@@ -113,17 +158,20 @@ let firstSelectedCard = null;
 let matchedPairsCount = 0;
 
 function startMatchGame() {
-  if (vocabularyList.length === 0) {
-    matchBoard.innerHTML = "<p style='grid-column:1/3; text-align:center;'>單字庫為空！</p>";
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) {
+    matchBoard.innerHTML = "<p style='grid-column:1/3; text-align:center; color:#666;'>此資料夾中沒有單字！</p>";
+    btnResetMatch.classList.add("hidden");
     return;
   }
+
   matchBoard.innerHTML = "";
   btnResetMatch.classList.add("hidden");
   firstSelectedCard = null;
   matchedPairsCount = 0;
 
   // 隨機最多取 6 組單字進行配對
-  const shuffledList = [...vocabularyList].sort(() => Math.random() - 0.5).slice(0, 6);
+  const shuffledList = [...currentList].sort(() => Math.random() - 0.5).slice(0, 6);
 
   let cards = [];
   shuffledList.forEach(item => {
