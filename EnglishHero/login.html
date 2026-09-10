@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EnglishHero - 會員登入</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2026">
   <style>
     .auth-container { max-width: 400px; margin: 60px auto; padding: 30px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .auth-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
@@ -15,16 +15,16 @@
     .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
     .btn-submit { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
     .btn-submit:hover { background: #2563eb; }
-    .auth-msg { padding: 10px; margin-bottom: 15px; border-radius: 6px; font-size: 14px; }
+    .auth-msg { padding: 10px; margin-bottom: 15px; border-radius: 6px; font-size: 14px; text-align: center; }
     .auth-msg.error { background: #fee2e2; color: #dc2626; }
     .auth-msg.success { background: #dcfce7; color: #16a34a; }
     .hidden { display: none; }
   </style>
 </head>
-<body>
+<body class="dashboard-body">
 
   <div class="auth-container">
-    <h2 style="text-align:center; margin-top:0;">EnglishHero</h2>
+    <h2 style="text-align:center; margin-top:0;">📚 EnglishHero</h2>
     
     <div class="auth-tabs">
       <div id="tab-login" class="auth-tab active">登入</div>
@@ -33,7 +33,6 @@
 
     <div id="auth-message" class="auth-msg hidden"></div>
 
-    <!-- 登入表單 -->
     <form id="login-form">
       <div class="form-group">
         <label>電子郵件 (Email)</label>
@@ -46,7 +45,6 @@
       <button type="submit" class="btn-submit">登入</button>
     </form>
 
-    <!-- 註冊表單 -->
     <form id="register-form" class="hidden">
       <div class="form-group">
         <label>電子郵件 (Email)</label>
@@ -60,8 +58,8 @@
     </form>
   </div>
 
-<!-- 必須依序載入 Firebase 與 login.js -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="js/login.js"></script>
+  <script src="js/login.js?v=2026"></script>
 </body>
+</html>
