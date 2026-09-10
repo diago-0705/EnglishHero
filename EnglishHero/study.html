@@ -3,73 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>English Hero - 背單字庫</title>
+  <title>English Hero - 背單字</title>
   <link rel="stylesheet" href="css/style.css">
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-</head>
-<body class="study-body">
-
-  <header class="study-header">
-    <a href="index.html" class="btn-back">⬅ 回首頁</a>
-    <div class="breadcrumb" id="breadcrumb-bar">
-      <!-- 動態麵包屑導航 -->
-    </div>
-    <div style="width: 80px;"></div>
-  </header>
-
-  <main class="study-container">
+  <style>
+    /* 遊戲區塊專屬樣式 */
+    .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .mode-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+    .mode-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; }
+    .mode-tab.active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
     
-    <!-- 操作工具列 -->
-    <div class="toolbar">
-      <button id="btn-create-subfolder" class="btn-secondary-action">+ 建立子資料夾</button>
-      <button id="btn-add-word" class="btn-primary-action">+ 新增單字</button>
+    /* 填空模式 */
+    .fill-box { text-align: center; padding: 20px 0; }
+    .word-meaning { font-size: 24px; margin-bottom: 20px; font-weight: bold; color: #333; }
+    .fill-input { font-size: 20px; padding: 10px; width: 80%; max-width: 300px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 15px; }
+    .btn-submit { padding: 10px 30px; font-size: 18px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .feedback { margin-top: 15px; font-size: 16px; font-weight: bold; height: 24px; }
+    
+    /* 配對模式 */
+    .match-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 10px; }
+    .match-card { padding: 20px 10px; text-align: center; background: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; user-select: none; }
+    .match-card:hover { background: #e5e7eb; }
+    .match-card.selected { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+    .match-card.matched { visibility: hidden; } /* 配對成功直接隱藏 */
+    
+    .hidden { display: none; }
+  </style>
+</head>
+<body class="dashboard-body">
+
+<header class="main-header">
+  <div class="logo">📚 English Hero</div>
+  <div class="user-panel">
+    <a href="index.html" style="margin-right:15px; text-decoration:none; color:#333; font-weight:bold;">回首頁</a>
+  </div>
+</header>
+
+<div class="study-container">
+  <!-- 模式切換按鈕 -->
+  <div class="mode-tabs">
+    <div id="tab-fill" class="mode-tab active">✏️ 填空練習</div>
+    <div id="tab-match" class="mode-tab">🎴 配對遊戲</div>
+  </div>
+
+  <!-- 填空練習區 -->
+  <div id="mode-fill" class="fill-box">
+    <div class="word-meaning" id="fill-question">載入中...</div>
+    <input type="text" id="fill-answer" class="fill-input" placeholder="請輸入英文單字" autocomplete="off">
+    <br>
+    <button id="btn-check-fill" class="btn-submit">送出對答案</button>
+    <div id="fill-feedback" class="feedback"></div>
+  </div>
+
+  <!-- 配對遊戲區 -->
+  <div id="mode-match" class="hidden">
+    <div style="text-align:center; margin-bottom:10px; color:#666;">請點擊英文與對應的中文配對</div>
+    <div id="match-board" class="match-grid">
+      <!-- 卡片會由 JavaScript 動態生成 -->
     </div>
+    <div style="text-align:center; margin-top:15px;">
+      <button id="btn-reset-match" class="btn-submit hidden">再玩一次</button>
+    </div>
+  </div>
 
-    <!-- 子資料夾區域 -->
-    <section class="subfolders-section">
-      <h3>📁 資料夾清單</h3>
-      <div id="subfolder-list" class="folder-grid"></div>
-    </section>
+</div>
 
-    <!-- 翻卡背誦區 -->
-    <section id="flashcard-section" class="flashcard-area hidden">
-      <div id="card-inner" class="flashcard">
-        <div class="card-front">
-          <span class="card-tip">點擊翻面看中文 👆</span>
-          <h3 id="card-word">Word</h3>
-          <button id="btn-speak" class="btn-icon" title="發音">🔊 朗讀</button>
-        </div>
-        <div class="card-back">
-          <h3 id="card-translation">中文翻譯</h3>
-        </div>
-      </div>
-      <div class="card-nav">
-        <button id="btn-prev-card" class="btn-secondary-action">上一個</button>
-        <span id="card-counter">1 / 1</span>
-        <button id="btn-next-card" class="btn-primary-action">下一個</button>
-      </div>
-    </section>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <!-- 當前資料夾單字清單 -->
-    <section class="word-list-table-container">
-      <h3>📝 本層單字清單</h3>
-      <table class="word-table">
-        <thead>
-          <tr>
-            <th style="width: 45%;">英文單字</th>
-            <th style="width: 40%;">中文解釋</th>
-            <th style="width: 15%; text-align: center;">操作</th>
-          </tr>
-        </thead>
-        <tbody id="word-table-body"></tbody>
-      </table>
-    </section>
-
-  </main>
-
-  <script src="js/study.js"></script>
+<!-- 核心邏輯 -->
+<script src="js/study.js"></script>
 </body>
 </html>
