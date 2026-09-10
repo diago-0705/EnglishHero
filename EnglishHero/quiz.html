@@ -11,7 +11,11 @@
     .mode-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; }
     .mode-tab.active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
     
-    .fill-box { text-align: center; padding: 20px 0; }
+    .folder-filter-box { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .folder-filter-box label { font-weight: bold; color: #334155; white-space: nowrap; }
+    .folder-filter-box select { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; }
+
+    .fill-box { text-align: center; padding: 10px 0; }
     .word-meaning { font-size: 24px; margin-bottom: 20px; font-weight: bold; color: #333; }
     .fill-input { font-size: 20px; padding: 10px; width: 80%; max-width: 300px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 15px; }
     .btn-submit { padding: 10px 30px; font-size: 18px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
@@ -39,6 +43,14 @@
   <div class="mode-tabs">
     <div id="tab-fill" class="mode-tab active">✏️ 填空測驗</div>
     <div id="tab-match" class="mode-tab">🎴 配對挑戰</div>
+  </div>
+
+  <!-- 資料夾選擇列 -->
+  <div class="folder-filter-box">
+    <label for="quiz-folder-select">🎯 測驗範圍：</label>
+    <select id="quiz-folder-select">
+      <option value="ALL">全部資料夾 (綜合測驗)</option>
+    </select>
   </div>
 
   <div id="mode-fill" class="fill-box">
