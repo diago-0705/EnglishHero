@@ -1,4 +1,3 @@
-// === Firebase 專案設定 ===
 const firebaseConfig = {
   apiKey: "AIzaSyA4bbUoXHi29YAjCgYrnuYRhZJ8_JEtalc",
   authDomain: "englishhero-d58c6.firebaseapp.com",
@@ -17,55 +16,46 @@ const db = firebase.firestore();
 
 let currentUser = null;
 
-// 驗證登入狀態
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html");
+    window.location.replace("login.html?v=2026");
   }
 });
 
 const addForm = document.getElementById("add-word-form");
 const msgEl = document.getElementById("add-msg");
 
-addForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  
-  if (!currentUser) {
-    showMessage("請先登入！", true);
-    return;
-  }
+if (addForm) {
+  addForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
 
-  const folder = document.getElementById("word-folder").value.trim();
-  const en = document.getElementById("word-en").value.trim();
-  const ch = document.getElementById("word-ch").value.trim();
+    const folder = document.getElementById("word-folder").value.trim();
+    const en = document.getElementById("word-en").value.trim();
+    const ch = document.getElementById("word-ch").value.trim();
 
-  showMessage("儲存中...", false);
+    msgEl.textContent = "儲存中...";
+    msgEl.className = "msg";
 
-  // 將資料寫入 Firestore (路徑: users/{使用者ID}/words/{隨機ID})
-  db.collection("users").doc(currentUser.uid).collection("words").add({
-    folder: folder,
-    en: en,
-    ch: ch,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  })
-  .then(() => {
-    showMessage("✅ 新增成功！", false);
-    // 為了方便連續輸入，只清空單字跟中文，保留資料夾名稱
-    document.getElementById("word-en").value = "";
-    document.getElementById("word-ch").value = "";
-    document.getElementById("word-en").focus(); // 游標自動跳回英文輸入框
-  })
-  .catch((error) => {
-    console.error("寫入資料庫失敗：", error);
-    showMessage("❌ 儲存失敗：" + error.message, true);
+    db.collection("users").doc(currentUser.uid).collection("words").add({
+      folder: folder,
+      en: en,
+      ch: ch,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+      msgEl.textContent = "✅ 新增成功！";
+      msgEl.className = "msg success";
+      document.getElementById("word-en").value = "";
+      document.getElementById("word-ch").value = "";
+      document.getElementById("word-en").focus();
+      setTimeout(() => { msgEl.textContent = ""; }, 2500);
+    })
+    .catch((err) => {
+      msgEl.textContent = `❌ 儲存失敗：${err.message}`;
+      msgEl.className = "msg error";
+    });
   });
-});
-
-function showMessage(text, isError) {
-  msgEl.textContent = text;
-  msgEl.className = isError ? "msg error" : "msg success";
-  msgEl.style.color = isError ? "#dc2626" : "#16a34a";
-  setTimeout(() => { msgEl.textContent = ""; }, 3000);
 }
