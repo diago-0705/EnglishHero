@@ -14,171 +14,165 @@ if (!firebase.apps.length) {
 }
 const auth = firebase.auth();
 
-let currentUserEmail = "";
-let rootFolder = null;
-let quizPool = [];
-let currentQIndex = 0;
-let score = 0;
-
+// 驗證登入狀態
 auth.onAuthStateChanged((user) => {
-  if (user) {
-    currentUserEmail = user.email;
-    loadUserData();
-    renderFolderCheckboxes();
-  } else {
+  if (!user) {
     window.location.replace("login.html");
   }
 });
 
-function loadUserData() {
-  const saved = localStorage.getItem(`english_hero_tree_${currentUserEmail}`);
-  if (saved) {
-    rootFolder = JSON.parse(saved);
-  }
-}
+// --- 測試用單字庫 (未來將改為從 Firestore 抓取) ---
+const vocabularyList = [
+  { en: "abandon", ch: "放棄" },
+  { en: "ability", ch: "能力" },
+  { en: "absence", ch: "缺席" },
+  { en: "absolute", ch: "絕對的" },
+  { en: "academic", ch: "學術的" },
+  { en: "balance", ch: "平衡" }
+];
 
-// DOM
-const setupCard = document.getElementById("quiz-setup-card");
-const playCard = document.getElementById("quiz-play-card");
-const resultCard = document.getElementById("quiz-result-card");
-const folderTreeEl = document.getElementById("folder-checkbox-tree");
-const btnStartQuiz = document.getElementById("btn-start-quiz");
+// --- 取得 DOM 元素 ---
+const tabFill = document.getElementById("tab-fill");
+const tabMatch = document.getElementById("tab-match");
+const modeFill = document.getElementById("mode-fill");
+const modeMatch = document.getElementById("mode-match");
 
-const qProgress = document.getElementById("quiz-progress");
-const qScore = document.getElementById("quiz-score");
-const qWord = document.getElementById("quiz-question-word");
-const qOptionsContainer = document.getElementById("quiz-options-container");
-const qFeedback = document.getElementById("quiz-feedback");
-const btnNextQuestion = document.getElementById("btn-next-question");
-const btnQuizSpeak = document.getElementById("btn-quiz-speak");
-const finalScoreText = document.getElementById("final-score-text");
+// 填空相關元素
+const fillQuestion = document.getElementById("fill-question");
+const fillAnswer = document.getElementById("fill-answer");
+const btnCheckFill = document.getElementById("btn-check-fill");
+const fillFeedback = document.getElementById("fill-feedback");
 
-// 遞迴產生所有資料夾選單
-function renderFolderCheckboxes() {
-  folderTreeEl.innerHTML = "";
-  if (!rootFolder) return;
+// 配對相關元素
+const matchBoard = document.getElementById("match-board");
+const btnResetMatch = document.getElementById("btn-reset-match");
 
-  function traverse(node, depth = 0) {
-    const div = document.createElement("div");
-    div.style.marginLeft = `${depth * 20}px`;
-    div.className = "folder-select-item";
-    div.innerHTML = `
-      <label>
-        <input type="checkbox" value="${node.id}" checked>
-        📁 <strong>${node.name}</strong> (${node.words ? node.words.length : 0} 個單字)
-      </label>
-    `;
-    folderTreeEl.appendChild(div);
-
-    if (node.subfolders) {
-      node.subfolders.forEach(sub => traverse(sub, depth + 1));
-    }
-  }
-
-  traverse(rootFolder, 0);
-}
-
-// 根據勾選收集所有題目
-btnStartQuiz.addEventListener("click", () => {
-  const checkboxes = folderTreeEl.querySelectorAll("input[type='checkbox']:checked");
-  const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-
-  if (selectedIds.length === 0) {
-    alert("請至少勾選一個資料夾！");
-    return;
-  }
-
-  quizPool = [];
-  function collect(node) {
-    if (selectedIds.includes(node.id) && node.words) {
-      quizPool.push(...node.words);
-    }
-    if (node.subfolders) {
-      node.subfolders.forEach(sub => collect(sub));
-    }
-  }
-  collect(rootFolder);
-
-  if (quizPool.length < 2) {
-    alert("所選資料夾內的單字總數太少（至少需要 2 個單字才能進行測驗）！請先新增更多單字。");
-    return;
-  }
-
-  // 洗牌
-  quizPool.sort(() => Math.random() - 0.5);
-  currentQIndex = 0;
-  score = 0;
-
-  setupCard.classList.add("hidden");
-  playCard.classList.remove("hidden");
-  renderQuestion();
+// ==========================================
+// 模式切換邏輯
+// ==========================================
+tabFill.addEventListener("click", () => {
+  tabFill.classList.add("active");
+  tabMatch.classList.remove("active");
+  modeFill.classList.remove("hidden");
+  modeMatch.classList.add("hidden");
+  startFillGame();
 });
 
-function renderQuestion() {
-  qFeedback.className = "quiz-feedback hidden";
-  btnNextQuestion.classList.add("hidden");
+tabMatch.addEventListener("click", () => {
+  tabMatch.classList.add("active");
+  tabFill.classList.remove("active");
+  modeMatch.classList.remove("hidden");
+  modeFill.classList.add("hidden");
+  startMatchGame();
+});
 
-  const currentQ = quizPool[currentQIndex];
-  qProgress.textContent = `第 ${currentQIndex + 1} / ${quizPool.length} 題`;
-  qScore.textContent = `得分：${score}`;
-  qWord.textContent = currentQ.word;
+// ==========================================
+// 模式一：填空練習邏輯
+// ==========================================
+let currentFillWord = null;
 
-  // 產生 4 個選項（1 正確 + 3 干擾項）
-  const options = [currentQ.translation];
-  const otherTranslations = quizPool
-    .filter(item => item.translation !== currentQ.translation)
-    .map(item => item.translation);
+function startFillGame() {
+  fillAnswer.value = "";
+  fillFeedback.textContent = "";
+  fillFeedback.style.color = "";
+  // 隨機挑選一個單字
+  const randomIndex = Math.floor(Math.random() * vocabularyList.length);
+  currentFillWord = vocabularyList[randomIndex];
+  fillQuestion.textContent = currentFillWord.ch;
+  fillAnswer.focus();
+}
 
-  otherTranslations.sort(() => Math.random() - 0.5);
-  options.push(...otherTranslations.slice(0, 3));
-  options.sort(() => Math.random() - 0.5);
+btnCheckFill.addEventListener("click", checkFillAnswer);
+fillAnswer.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") checkFillAnswer();
+});
 
-  qOptionsContainer.innerHTML = "";
-  options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.className = "quiz-option-btn";
-    btn.textContent = opt;
-    btn.onclick = () => checkAnswer(opt, currentQ.translation, btn);
-    qOptionsContainer.appendChild(btn);
+function checkFillAnswer() {
+  const userInput = fillAnswer.value.trim().toLowerCase();
+  if (!userInput) return;
+
+  if (userInput === currentFillWord.en.toLowerCase()) {
+    fillFeedback.textContent = "✅ 答對了！";
+    fillFeedback.style.color = "#16a34a";
+    setTimeout(startFillGame, 1000); // 1秒後自動換下一題
+  } else {
+    fillFeedback.textContent = "❌ 答錯囉！提示字首: " + currentFillWord.en.charAt(0);
+    fillFeedback.style.color = "#dc2626";
+    fillAnswer.focus();
+  }
+}
+
+// ==========================================
+// 模式二：配對遊戲邏輯
+// ==========================================
+let firstSelectedCard = null;
+let matchedPairsCount = 0;
+
+function startMatchGame() {
+  matchBoard.innerHTML = "";
+  btnResetMatch.classList.add("hidden");
+  firstSelectedCard = null;
+  matchedPairsCount = 0;
+
+  // 取出單字並打亂，生成英文與中文的卡片陣列
+  let cards = [];
+  vocabularyList.forEach(item => {
+    cards.push({ text: item.en, type: 'en', pairId: item.en });
+    cards.push({ text: item.ch, type: 'ch', pairId: item.en });
+  });
+
+  // 隨機洗牌演算法
+  cards.sort(() => Math.random() - 0.5);
+
+  // 渲染卡片
+  cards.forEach(card => {
+    const div = document.createElement("div");
+    div.classList.add("match-card");
+    div.textContent = card.text;
+    div.dataset.pairId = card.pairId;
+    
+    div.addEventListener("click", () => handleCardClick(div));
+    matchBoard.appendChild(div);
   });
 }
 
-function checkAnswer(selected, correct, btnEl) {
-  const allBtns = qOptionsContainer.querySelectorAll(".quiz-option-btn");
-  allBtns.forEach(b => b.disabled = true);
+function handleCardClick(clickedCard) {
+  if (clickedCard.classList.contains("matched") || clickedCard.classList.contains("selected")) return;
 
-  if (selected === correct) {
-    btnEl.classList.add("correct");
-    score += Math.round(100 / quizPool.length);
-    qFeedback.textContent = "🎉 答對了！太厲害了！";
-    qFeedback.className = "quiz-feedback success";
+  clickedCard.classList.add("selected");
+
+  if (!firstSelectedCard) {
+    firstSelectedCard = clickedCard;
   } else {
-    btnEl.classList.add("wrong");
-    allBtns.forEach(b => {
-      if (b.textContent === correct) b.classList.add("correct");
-    });
-    qFeedback.textContent = `❌ 答錯了，正確答案是：${correct}`;
-    qFeedback.className = "quiz-feedback error";
-  }
+    const firstId = firstSelectedCard.dataset.pairId;
+    const secondId = clickedCard.dataset.pairId;
 
-  qScore.textContent = `得分：${score}`;
-  btnNextQuestion.classList.remove("hidden");
+    if (firstId === secondId) {
+      // 配對成功
+      setTimeout(() => {
+        firstSelectedCard.classList.remove("selected");
+        firstSelectedCard.classList.add("matched");
+        clickedCard.classList.remove("selected");
+        clickedCard.classList.add("matched");
+        firstSelectedCard = null;
+        matchedPairsCount++;
+        
+        if (matchedPairsCount === vocabularyList.length) {
+          btnResetMatch.classList.remove("hidden");
+        }
+      }, 300);
+    } else {
+      // 配對失敗
+      setTimeout(() => {
+        firstSelectedCard.classList.remove("selected");
+        clickedCard.classList.remove("selected");
+        firstSelectedCard = null;
+      }, 500);
+    }
+  }
 }
 
-btnNextQuestion.addEventListener("click", () => {
-  currentQIndex++;
-  if (currentQIndex < quizPool.length) {
-    renderQuestion();
-  } else {
-    playCard.classList.add("hidden");
-    resultCard.classList.remove("hidden");
-    finalScoreText.textContent = `最終成績：${score} 分`;
-  }
-});
+btnResetMatch.addEventListener("click", startMatchGame);
 
-btnQuizSpeak.addEventListener("click", () => {
-  const word = quizPool[currentQIndex].word;
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = "en-US";
-  window.speechSynthesis.speak(utterance);
-});
+// --- 初始化執行 ---
+startFillGame(); // 網頁載入時預設啟動填空模式
