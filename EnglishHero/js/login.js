@@ -1,4 +1,3 @@
-// === Firebase 專案設定 ===
 const firebaseConfig = {
   apiKey: "AIzaSyA4bbUoXHi29YAjCgYrnuYRhZJ8_JEtalc",
   authDomain: "englishhero-d58c6.firebaseapp.com",
@@ -20,11 +19,6 @@ const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
 const authMessage = document.getElementById("auth-message");
 
-const loginEmailInput = document.getElementById("login-email");
-const loginPasswordInput = document.getElementById("login-password");
-const regEmailInput = document.getElementById("reg-email");
-const regPasswordInput = document.getElementById("reg-password");
-
 function showMessage(msg, isError = true) {
   if (authMessage) {
     authMessage.textContent = msg;
@@ -40,7 +34,6 @@ function clearMessage() {
   }
 }
 
-// 頁籤切換
 if (tabLogin && tabRegister) {
   tabLogin.onclick = () => {
     tabLogin.classList.add("active");
@@ -59,83 +52,45 @@ if (tabLogin && tabRegister) {
   };
 }
 
-// 登入
 if (loginForm) {
   loginForm.onsubmit = function (e) {
     e.preventDefault();
     clearMessage();
 
-    const email = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-
-    if (!email || !password) {
-      showMessage("請輸入電子郵件與密碼！", true);
-      return;
-    }
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
 
     showMessage("正在登入中...", false);
 
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => auth.signInWithEmailAndPassword(email, password))
       .then(() => {
-        return auth.signInWithEmailAndPassword(email, password);
-      })
-      .then((userCredential) => {
         showMessage("登入成功！正在跳轉...", false);
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 600);
+        setTimeout(() => { window.location.href = "index.html?v=2026"; }, 500);
       })
       .catch((error) => {
-        console.error("登入錯誤：", error);
-        let errMsg = "登入失敗，請確認帳號密碼。";
-        if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
-          errMsg = "帳號或密碼錯誤，若尚未註冊請先切換至「註冊帳號」。";
-        } else if (error.code === "auth/wrong-password") {
-          errMsg = "密碼錯誤，請重新確認。";
-        } else if (error.code === "auth/invalid-email") {
-          errMsg = "電子郵件格式不正確。";
-        } else {
-          errMsg = `登入失敗：${error.message}`;
-        }
-        showMessage(errMsg, true);
+        showMessage(`登入失敗：${error.message}`, true);
       });
   };
 }
 
-// 註冊
 if (registerForm) {
   registerForm.onsubmit = function (e) {
     e.preventDefault();
     clearMessage();
 
-    const email = regEmailInput.value.trim();
-    const password = regPasswordInput.value;
-
-    if (!email || !password) {
-      showMessage("請輸入電子郵件與密碼！", true);
-      return;
-    }
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
 
     showMessage("正在建立帳號...", false);
 
     auth.createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        showMessage("註冊成功！正在為您跳轉...", false);
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 600);
+      .then(() => {
+        showMessage("註冊成功！正在跳轉...", false);
+        setTimeout(() => { window.location.href = "index.html?v=2026"; }, 500);
       })
       .catch((error) => {
-        console.error("註冊錯誤：", error);
-        let errMsg = "註冊失敗。";
-        if (error.code === "auth/email-already-in-use") {
-          errMsg = "此電子郵件已被註冊，請直接點選「登入」。";
-        } else if (error.code === "auth/weak-password") {
-          errMsg = "密碼長度不足，請至少設定 6 位字元。";
-        } else {
-          errMsg = `註冊失敗：${error.message}`;
-        }
-        showMessage(errMsg, true);
+        showMessage(`註冊失敗：${error.message}`, true);
       });
   };
 }
