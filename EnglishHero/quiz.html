@@ -7,27 +7,25 @@
   <link rel="stylesheet" href="css/style.css?v=2026">
   <style>
     .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-    .mode-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
-    .mode-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; }
+    .mode-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; overflow-x: auto; }
+    .mode-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: bold; color: #666; white-space: nowrap; font-size: 14px; }
     .mode-tab.active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
     
     .folder-filter-box { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .folder-filter-box label { font-weight: bold; color: #334155; white-space: nowrap; }
     .folder-filter-box select { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; }
 
-    .fill-box { text-align: center; padding: 10px 0; }
-    .word-meaning { font-size: 24px; margin-bottom: 20px; font-weight: bold; color: #333; }
-    .fill-input { font-size: 20px; padding: 10px; width: 80%; max-width: 300px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 15px; }
-    .btn-submit { padding: 10px 30px; font-size: 18px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
-    .feedback { margin-top: 15px; font-size: 16px; font-weight: bold; min-height: 24px; }
+    .quiz-box { text-align: center; padding: 10px 0; }
+    .question-title { font-size: 26px; margin-bottom: 25px; font-weight: bold; color: #1e293b; background: #f1f5f9; padding: 20px; border-radius: 10px; }
     
-    .match-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 10px; }
-    .match-card { padding: 20px 10px; text-align: center; background: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; user-select: none; }
-    .match-card:hover { background: #e5e7eb; }
-    .match-card.selected { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
-    .match-card.matched { visibility: hidden; } 
-    
-    .hidden { display: none; }
+    .options-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .option-btn { padding: 15px; font-size: 18px; font-weight: bold; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: 0.2s; text-align: center; color: #334155; }
+    .option-btn:hover { background: #e2e8f0; border-color: #94a3b8; }
+    .option-btn.correct { background: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; }
+    .option-btn.wrong { background: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+
+    .feedback { margin-top: 15px; font-size: 18px; font-weight: bold; min-height: 28px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body class="dashboard-body">
@@ -40,9 +38,10 @@
 </header>
 
 <div class="study-container">
+  <!-- 模式選擇頁籤 -->
   <div class="mode-tabs">
-    <div id="tab-fill" class="mode-tab active">✏️ 填空測驗</div>
-    <div id="tab-match" class="mode-tab">🎴 配對挑戰</div>
+    <div id="tab-en-to-ch" class="mode-tab active">🔤 英選中 (1英3中)</div>
+    <div id="tab-ch-to-en" class="mode-tab">🇹🇼 中選英 (1中3英)</div>
   </div>
 
   <!-- 資料夾選擇列 -->
@@ -53,20 +52,13 @@
     </select>
   </div>
 
-  <div id="mode-fill" class="fill-box">
-    <div class="word-meaning" id="fill-question">載入單字中...</div>
-    <input type="text" id="fill-answer" class="fill-input" placeholder="請輸入英文單字" autocomplete="off">
-    <br>
-    <button id="btn-check-fill" class="btn-submit">送出對答案</button>
-    <div id="fill-feedback" class="feedback"></div>
-  </div>
-
-  <div id="mode-match" class="hidden">
-    <div style="text-align:center; margin-bottom:10px; color:#666;">點擊英文與中文卡片進行配對</div>
-    <div id="match-board" class="match-grid"></div>
-    <div style="text-align:center; margin-top:15px;">
-      <button id="btn-reset-match" class="btn-submit hidden">再挑戰一次</button>
+  <!-- 測驗主畫面 -->
+  <div id="quiz-game-box" class="quiz-box">
+    <div class="question-title" id="quiz-question">載入單字中...</div>
+    <div class="options-grid" id="options-container">
+      <!-- 選項按鈕會透過 JS 動態產生 -->
     </div>
+    <div id="quiz-feedback" class="feedback"></div>
   </div>
 </div>
 
