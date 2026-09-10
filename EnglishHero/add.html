@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>English Hero - 新增單字</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2026">
   <style>
     .add-container { max-width: 500px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
-    .form-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-    .btn-submit { width: 100%; padding: 12px; background: #22c55e; color: #fff; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    .btn-submit { width: 100%; padding: 12px; background: #22c55e; color: #fff; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
     .btn-submit:hover { background: #16a34a; }
-    .msg { margin-top: 15px; text-align: center; font-weight: bold; height: 24px; }
+    .msg { margin-top: 15px; text-align: center; font-weight: bold; min-height: 24px; }
     .msg.success { color: #16a34a; }
     .msg.error { color: #dc2626; }
   </style>
@@ -22,16 +22,16 @@
 <header class="main-header">
   <div class="logo">➕ English Hero - 新增單字</div>
   <div class="user-panel">
-    <a href="index.html" class="btn-back">回首頁</a>
+    <a href="index.html?v=2026" class="btn-back">回首頁</a>
   </div>
 </header>
 
 <div class="add-container">
-  <h2 style="text-align: center; margin-bottom: 20px;">擴充你的單字庫</h2>
+  <h2 style="text-align: center; margin-bottom: 20px;">擴充單字庫</h2>
   <form id="add-word-form">
     <div class="form-group">
-      <label>📁 分類資料夾 (例如: 第一課、多益必考)</label>
-      <input type="text" id="word-folder" placeholder="輸入分類名稱" required>
+      <label>📁 分類資料夾</label>
+      <input type="text" id="word-folder" placeholder="例如: 第一課、日常對話" required>
     </div>
     <div class="form-group">
       <label>🔤 英文單字</label>
@@ -46,11 +46,9 @@
   <div id="add-msg" class="msg"></div>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
-<script src="js/add.js?v=1"></script>
+<script src="js/add.js?v=2026"></script>
 </body>
 </html>
