@@ -1,299 +1,158 @@
-// === Firebase 專案設定 ===
-const firebaseConfig = {
-  apiKey: "AIzaSyA4bbUoXHi29YAjCgYrnuYRhZJ8_JEtalc",
-  authDomain: "englishhero-d58c6.firebaseapp.com",
-  projectId: "englishhero-d58c6",
-  storageBucket: "englishhero-d58c6.firebasestorage.app",
-  messagingSenderId: "437927020009",
-  appId: "1:437927020009:web:30e18c99cfeec8ef4ef778",
-  measurementId: "G-TZTCS02SK6"
-};
+// 初始化 Firebase (若需要從資料庫抓單字)
+// 這裡先建立一組測試用的單字庫，後續你可以串接 Firestore
+const vocabularyList = [
+  { en: "abandon", ch: "放棄" },
+  { en: "ability", ch: "能力" },
+  { en: "absence", ch: "缺席" },
+  { en: "absolute", ch: "絕對的" },
+  { en: "academic", ch: "學術的" },
+  { en: "balance", ch: "平衡" }
+];
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-const auth = firebase.auth();
+// DOM 元素 - 頁籤
+const tabFill = document.getElementById("tab-fill");
+const tabMatch = document.getElementById("tab-match");
+const modeFill = document.getElementById("mode-fill");
+const modeMatch = document.getElementById("mode-match");
 
-let currentUserEmail = "";
-let rootFolder = null;
-let currentPath = []; // 存放資料夾 id 路徑陣列
-let currentCardIndex = 0;
+// DOM 元素 - 填空
+const fillQuestion = document.getElementById("fill-question");
+const fillAnswer = document.getElementById("fill-answer");
+const btnCheckFill = document.getElementById("btn-check-fill");
+const fillFeedback = document.getElementById("fill-feedback");
 
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    currentUserEmail = user.email;
-    loadUserData();
-    currentPath = ["root"];
-    renderView();
-  } else {
-    window.location.replace("login.html");
-  }
+// DOM 元素 - 配對
+const matchBoard = document.getElementById("match-board");
+const btnResetMatch = document.getElementById("btn-reset-match");
+
+// --- 頁籤切換邏輯 ---
+tabFill.addEventListener("click", () => {
+  tabFill.classList.add("active");
+  tabMatch.classList.remove("active");
+  modeFill.classList.remove("hidden");
+  modeMatch.classList.add("hidden");
+  startFillGame();
 });
 
-function getStorageKey() {
-  return `english_hero_tree_${currentUserEmail}`;
+tabMatch.addEventListener("click", () => {
+  tabMatch.classList.add("active");
+  tabFill.classList.remove("active");
+  modeMatch.classList.remove("hidden");
+  modeFill.classList.add("hidden");
+  startMatchGame();
+});
+
+// ==========================================
+// 模式一：填空練習邏輯
+// ==========================================
+let currentFillWord = null;
+
+function startFillGame() {
+  fillAnswer.value = "";
+  fillFeedback.textContent = "";
+  fillFeedback.style.color = "";
+  // 隨機挑選一個單字
+  const randomIndex = Math.floor(Math.random() * vocabularyList.length);
+  currentFillWord = vocabularyList[randomIndex];
+  fillQuestion.textContent = currentFillWord.ch;
+  fillAnswer.focus();
 }
 
-function loadUserData() {
-  const saved = localStorage.getItem(getStorageKey());
-  if (saved) {
-    rootFolder = JSON.parse(saved);
+btnCheckFill.addEventListener("click", checkFillAnswer);
+fillAnswer.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") checkFillAnswer();
+});
+
+function checkFillAnswer() {
+  const userInput = fillAnswer.value.trim().toLowerCase();
+  if (!userInput) return;
+
+  if (userInput === currentFillWord.en.toLowerCase()) {
+    fillFeedback.textContent = "✅ 答對了！";
+    fillFeedback.style.color = "#16a34a";
+    setTimeout(startFillGame, 1000); // 1秒後自動換下一題
   } else {
-    // 預設樹狀結構
-    rootFolder = {
-      id: "root",
-      name: "根目錄",
-      words: [],
-      subfolders: [
-        {
-          id: "folder_toeic",
-          name: "TOEIC 多益",
-          words: [
-            { word: "contract", translation: "合約" },
-            { word: "negotiate", translation: "協商" }
-          ],
-          subfolders: [
-            {
-              id: "folder_toeic_part1",
-              name: "商務對話核心",
-              words: [{ word: "agenda", translation: "議程" }],
-              subfolders: []
-            }
-          ]
-        },
-        {
-          id: "folder_daily",
-          name: "日常會話",
-          words: [
-            { word: "apple", translation: "蘋果" },
-            { word: "courage", translation: "勇氣" }
-          ],
-          subfolders: []
-        }
-      ]
-    };
-    saveUserData();
+    fillFeedback.textContent = "❌ 答錯囉，再試一次！(提示字首: " + currentFillWord.en.charAt(0) + ")";
+    fillFeedback.style.color = "#dc2626";
+    fillAnswer.focus();
   }
 }
 
-function saveUserData() {
-  localStorage.setItem(getStorageKey(), JSON.stringify(rootFolder));
-}
+// ==========================================
+// 模式二：配對遊戲邏輯
+// ==========================================
+let firstSelectedCard = null;
+let matchedPairsCount = 0;
 
-// 根據 path 陣列取得當前目錄物件
-function getCurrentFolder() {
-  let curr = rootFolder;
-  for (let i = 1; i < currentPath.length; i++) {
-    curr = curr.subfolders.find(f => f.id === currentPath[i]);
-    if (!curr) break;
-  }
-  return curr || rootFolder;
-}
+function startMatchGame() {
+  matchBoard.innerHTML = "";
+  btnResetMatch.classList.add("hidden");
+  firstSelectedCard = null;
+  matchedPairsCount = 0;
 
-// DOM
-const breadcrumbBar = document.getElementById("breadcrumb-bar");
-const subfolderList = document.getElementById("subfolder-list");
-const wordTableBody = document.getElementById("word-table-body");
-const flashcardSection = document.getElementById("flashcard-section");
-const cardInner = document.getElementById("card-inner");
-const cardWord = document.getElementById("card-word");
-const cardTranslation = document.getElementById("card-translation");
-const cardCounter = document.getElementById("card-counter");
-const btnPrevCard = document.getElementById("btn-prev-card");
-const btnNextCard = document.getElementById("btn-next-card");
-const btnSpeak = document.getElementById("btn-speak");
-const btnCreateSubfolder = document.getElementById("btn-create-subfolder");
-const btnAddWord = document.getElementById("btn-add-word");
+  // 取出單字並打亂，生成英文與中文的卡片陣列
+  let cards = [];
+  vocabularyList.forEach(item => {
+    cards.push({ text: item.en, type: 'en', pairId: item.en });
+    cards.push({ text: item.ch, type: 'ch', pairId: item.en });
+  });
 
-function renderView() {
-  const current = getCurrentFolder();
-  renderBreadcrumb();
-  renderSubfolders(current);
-  renderWords(current);
-}
+  // 隨機洗牌演算法
+  cards.sort(() => Math.random() - 0.5);
 
-// 麵包屑導航
-function renderBreadcrumb() {
-  breadcrumbBar.innerHTML = "";
-  let curr = rootFolder;
-  
-  const rootSpan = document.createElement("span");
-  rootSpan.className = "crumb-item";
-  rootSpan.textContent = "📁 根目錄";
-  rootSpan.onclick = () => {
-    currentPath = ["root"];
-    currentCardIndex = 0;
-    renderView();
-  };
-  breadcrumbBar.appendChild(rootSpan);
-
-  for (let i = 1; i < currentPath.length; i++) {
-    curr = curr.subfolders.find(f => f.id === currentPath[i]);
-    if (!curr) break;
+  // 渲染卡片
+  cards.forEach(card => {
+    const div = document.createElement("div");
+    div.classList.add("match-card");
+    div.textContent = card.text;
+    div.dataset.pairId = card.pairId;
     
-    const sep = document.createElement("span");
-    sep.textContent = " / ";
-    breadcrumbBar.appendChild(sep);
-
-    const crumb = document.createElement("span");
-    crumb.className = "crumb-item";
-    crumb.textContent = curr.name;
-    const pathIdx = i;
-    crumb.onclick = () => {
-      currentPath = currentPath.slice(0, pathIdx + 1);
-      currentCardIndex = 0;
-      renderView();
-    };
-    breadcrumbBar.appendChild(crumb);
-  }
-}
-
-// 渲染子資料夾清單
-function renderSubfolders(current) {
-  subfolderList.innerHTML = "";
-  if (!current.subfolders || current.subfolders.length === 0) {
-    subfolderList.innerHTML = `<p class="empty-tip">無子資料夾</p>`;
-    return;
-  }
-
-  current.subfolders.forEach((sub) => {
-    const item = document.createElement("div");
-    item.className = "folder-item";
-    item.innerHTML = `
-      <div class="folder-info" onclick="navigateToFolder('${sub.id}')">
-        <span class="folder-icon">📁</span>
-        <h3>${sub.name}</h3>
-        <p>${sub.words ? sub.words.length : 0} 個單字 · ${sub.subfolders ? sub.subfolders.length : 0} 個子資料夾</p>
-      </div>
-      <button class="btn-delete-folder" onclick="deleteSubfolder('${sub.id}', event)">刪除</button>
-    `;
-    subfolderList.appendChild(item);
+    div.addEventListener("click", () => handleCardClick(div));
+    matchBoard.appendChild(div);
   });
 }
 
-window.navigateToFolder = function(folderId) {
-  currentPath.push(folderId);
-  currentCardIndex = 0;
-  renderView();
-};
+function handleCardClick(clickedCard) {
+  // 如果點擊的是已經配對成功或已經被選取的卡片，則不反應
+  if (clickedCard.classList.contains("matched") || clickedCard.classList.contains("selected")) return;
 
-// 建立子資料夾
-btnCreateSubfolder.addEventListener("click", () => {
-  const name = prompt("請輸入子資料夾名稱：");
-  if (!name || !name.trim()) return;
+  clickedCard.classList.add("selected");
 
-  const current = getCurrentFolder();
-  if (!current.subfolders) current.subfolders = [];
+  if (!firstSelectedCard) {
+    // 這是選取的第一張卡
+    firstSelectedCard = clickedCard;
+  } else {
+    // 這是選取的第二張卡，進行比對
+    const firstId = firstSelectedCard.dataset.pairId;
+    const secondId = clickedCard.dataset.pairId;
 
-  current.subfolders.push({
-    id: "f_" + Date.now(),
-    name: name.trim(),
-    words: [],
-    subfolders: []
-  });
-
-  saveUserData();
-  renderView();
-});
-
-// 刪除子資料夾
-window.deleteSubfolder = function(folderId, e) {
-  e.stopPropagation();
-  if (!confirm("確定要刪除此資料夾及其內含的全部內容嗎？")) return;
-  const current = getCurrentFolder();
-  current.subfolders = current.subfolders.filter(f => f.id !== folderId);
-  saveUserData();
-  renderView();
-};
-
-// 渲染單字清單與卡片
-function renderWords(current) {
-  wordTableBody.innerHTML = "";
-
-  if (!current.words || current.words.length === 0) {
-    flashcardSection.classList.add("hidden");
-    wordTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#888;padding:20px;">此資料夾尚無單字</td></tr>`;
-    return;
+    if (firstId === secondId) {
+      // 配對成功
+      setTimeout(() => {
+        firstSelectedCard.classList.remove("selected");
+        firstSelectedCard.classList.add("matched");
+        clickedCard.classList.remove("selected");
+        clickedCard.classList.add("matched");
+        firstSelectedCard = null;
+        matchedPairsCount++;
+        
+        // 檢查是否全部過關
+        if (matchedPairsCount === vocabularyList.length) {
+          btnResetMatch.classList.remove("hidden");
+        }
+      }, 300);
+    } else {
+      // 配對失敗
+      setTimeout(() => {
+        firstSelectedCard.classList.remove("selected");
+        clickedCard.classList.remove("selected");
+        firstSelectedCard = null;
+      }, 500);
+    }
   }
-
-  flashcardSection.classList.remove("hidden");
-  updateFlashcard(current);
-
-  current.words.forEach((item, index) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${item.word}</strong></td>
-      <td>${item.translation}</td>
-      <td style="text-align:center;">
-        <button class="btn-del-sm" onclick="deleteWord(${index})">刪除</button>
-      </td>
-    `;
-    wordTableBody.appendChild(tr);
-  });
 }
 
-// 新增單字
-btnAddWord.addEventListener("click", () => {
-  const word = prompt("請輸入英文單字：");
-  if (!word || !word.trim()) return;
+btnResetMatch.addEventListener("click", startMatchGame);
 
-  const translation = prompt("請輸入中文解釋：");
-  if (!translation || !translation.trim()) return;
-
-  const current = getCurrentFolder();
-  if (!current.words) current.words = [];
-  current.words.push({ word: word.trim(), translation: translation.trim() });
-
-  saveUserData();
-  renderView();
-});
-
-window.deleteWord = function(index) {
-  const current = getCurrentFolder();
-  current.words.splice(index, 1);
-  if (currentCardIndex >= current.words.length) {
-    currentCardIndex = Math.max(0, current.words.length - 1);
-  }
-  saveUserData();
-  renderView();
-};
-
-// 翻卡與切換
-function updateFlashcard(current) {
-  if (!current.words || current.words.length === 0) return;
-  const item = current.words[currentCardIndex];
-  cardWord.textContent = item.word;
-  cardTranslation.textContent = item.translation;
-  cardCounter.textContent = `${currentCardIndex + 1} / ${current.words.length}`;
-  cardInner.classList.remove("flipped");
-}
-
-cardInner.addEventListener("click", (e) => {
-  if (e.target.id === "btn-speak") return;
-  cardInner.classList.toggle("flipped");
-});
-
-btnPrevCard.addEventListener("click", () => {
-  const current = getCurrentFolder();
-  if (!current.words || current.words.length === 0) return;
-  currentCardIndex = (currentCardIndex - 1 + current.words.length) % current.words.length;
-  updateFlashcard(current);
-});
-
-btnNextCard.addEventListener("click", () => {
-  const current = getCurrentFolder();
-  if (!current.words || current.words.length === 0) return;
-  currentCardIndex = (currentCardIndex + 1) % current.words.length;
-  updateFlashcard(current);
-});
-
-// 發音
-btnSpeak.addEventListener("click", (e) => {
-  e.stopPropagation();
-  const current = getCurrentFolder();
-  if (!current.words || current.words.length === 0) return;
-  const word = current.words[currentCardIndex].word;
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = "en-US";
-  window.speechSynthesis.speak(utterance);
-});
+// --- 初始化執行 ---
+startFillGame(); // 網頁載入時預設啟動填空模式
