@@ -14,21 +14,18 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let allWordsList = []; // 存放從雲端抓回來的全部單字
+let allWordsList = []; // 存放全部單字
 
-const tabFill = document.getElementById("tab-fill");
-const tabMatch = document.getElementById("tab-match");
-const modeFill = document.getElementById("mode-fill");
-const modeMatch = document.getElementById("mode-match");
+const tabEnToCh = document.getElementById("tab-en-to-ch");
+const tabChToEn = document.getElementById("tab-ch-to-en");
 const quizFolderSelect = document.getElementById("quiz-folder-select");
 
-const fillQuestion = document.getElementById("fill-question");
-const fillAnswer = document.getElementById("fill-answer");
-const btnCheckFill = document.getElementById("btn-check-fill");
-const fillFeedback = document.getElementById("fill-feedback");
+const quizQuestion = document.getElementById("quiz-question");
+const optionsContainer = document.getElementById("options-container");
+const quizFeedback = document.getElementById("quiz-feedback");
 
-const matchBoard = document.getElementById("match-board");
-const btnResetMatch = document.getElementById("btn-reset-match");
+let currentCorrectItem = null;
+let isAnswerLocked = false; // 答題鎖定，避免連續點擊
 
 auth.onAuthStateChanged((user) => {
   if (user) {
@@ -38,7 +35,7 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// 1. 載入使用者的全部單字與資料夾清單
+// 1. 抓取使用者的全部單字
 function fetchAllUserData(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
@@ -63,15 +60,14 @@ function fetchAllUserData(uid) {
       });
 
       if (allWordsList.length === 0) {
-        fillQuestion.textContent = "單字庫為空，請先至「新增單字」建立單字！";
+        quizQuestion.textContent = "單字庫為空，請先至「新增單字」建立單字！";
         return;
       }
 
-      // 初始化開始測驗
-      initCurrentMode();
+      startNewQuestion();
     })
     .catch((err) => {
-      fillQuestion.textContent = "資料載入失敗：" + err.message;
+      quizQuestion.textContent = "資料載入失敗：" + err.message;
     });
 }
 
@@ -84,145 +80,111 @@ function getFilteredWords() {
   return allWordsList.filter(item => item.folder === selectedFolder);
 }
 
-// 切換資料夾時重新開始測驗
+// 資料夾切換或模式切換時重新出題
 quizFolderSelect.addEventListener("change", () => {
-  initCurrentMode();
+  startNewQuestion();
 });
 
-// 模式切換
-tabFill.addEventListener("click", () => {
-  tabFill.classList.add("active");
-  tabMatch.classList.remove("active");
-  modeFill.classList.remove("hidden");
-  modeMatch.classList.add("hidden");
-  initCurrentMode();
+tabEnToCh.addEventListener("click", () => {
+  tabEnToCh.classList.add("active");
+  tabChToEn.classList.remove("active");
+  startNewQuestion();
 });
 
-tabMatch.addEventListener("click", () => {
-  tabMatch.classList.add("active");
-  tabFill.classList.remove("active");
-  modeMatch.classList.remove("hidden");
-  modeFill.classList.add("hidden");
-  initCurrentMode();
+tabChToEn.addEventListener("click", () => {
+  tabChToEn.classList.add("active");
+  tabEnToCh.classList.remove("active");
+  startNewQuestion();
 });
 
-function initCurrentMode() {
-  if (tabFill.classList.contains("active")) {
-    startFillGame();
-  } else {
-    startMatchGame();
-  }
-}
-
-// --- 填空邏輯 ---
-let currentFillWord = null;
-
-function startFillGame() {
+// 2. 產生新題目
+function startNewQuestion() {
   const currentList = getFilteredWords();
+  isAnswerLocked = false;
+  quizFeedback.textContent = "";
+  optionsContainer.innerHTML = "";
+
   if (currentList.length === 0) {
-    fillQuestion.textContent = "此資料夾中沒有單字！";
-    fillAnswer.value = "";
+    quizQuestion.textContent = "此資料夾中沒有單字！";
     return;
   }
-  fillAnswer.value = "";
-  fillFeedback.textContent = "";
+
+  if (currentList.length < 3) {
+    quizQuestion.textContent = "⚠️ 該資料夾單字少於 3 個，請至少新增 3 個單字才能進行三選一測驗！";
+    return;
+  }
+
+  // 隨機選出一題正解
   const randomIndex = Math.floor(Math.random() * currentList.length);
-  currentFillWord = currentList[randomIndex];
-  fillQuestion.textContent = currentFillWord.ch;
-  fillAnswer.focus();
-}
+  currentCorrectItem = currentList[randomIndex];
 
-btnCheckFill.addEventListener("click", checkFillAnswer);
-fillAnswer.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") checkFillAnswer();
-});
+  // 決定目前模式：true 為英選中，false 為中選英
+  const isEnToCh = tabEnToCh.classList.contains("active");
 
-function checkFillAnswer() {
-  if (!currentFillWord) return;
-  const userInput = fillAnswer.value.trim().toLowerCase();
-  if (!userInput) return;
-
-  if (userInput === currentFillWord.en.toLowerCase()) {
-    fillFeedback.textContent = "✅ 答對了！";
-    fillFeedback.style.color = "#16a34a";
-    setTimeout(startFillGame, 1000);
+  if (isEnToCh) {
+    quizQuestion.textContent = `英文：${currentCorrectItem.en}`;
   } else {
-    fillFeedback.textContent = "❌ 答錯囉！提示字首: " + currentFillWord.en.charAt(0);
-    fillFeedback.style.color = "#dc2626";
-    fillAnswer.focus();
-  }
-}
-
-// --- 配對邏輯 ---
-let firstSelectedCard = null;
-let matchedPairsCount = 0;
-
-function startMatchGame() {
-  const currentList = getFilteredWords();
-  if (currentList.length === 0) {
-    matchBoard.innerHTML = "<p style='grid-column:1/3; text-align:center; color:#666;'>此資料夾中沒有單字！</p>";
-    btnResetMatch.classList.add("hidden");
-    return;
+    quizQuestion.textContent = `中文：${currentCorrectItem.ch}`;
   }
 
-  matchBoard.innerHTML = "";
-  btnResetMatch.classList.add("hidden");
-  firstSelectedCard = null;
-  matchedPairsCount = 0;
+  // 從其他單字中隨機挑選 2 個不同的干擾選項
+  let wrongOptions = currentList.filter(item => item.en !== currentCorrectItem.en);
+  wrongOptions.sort(() => Math.random() - 0.5);
+  const selectedWrong = wrongOptions.slice(0, 2);
 
-  // 隨機最多取 6 組單字進行配對
-  const shuffledList = [...currentList].sort(() => Math.random() - 0.5).slice(0, 6);
+  // 組合總共 3 個選項（1個正確 + 2個錯誤）
+  let choices = [
+    { text: isEnToCh ? currentCorrectItem.ch : currentCorrectItem.en, isCorrect: true },
+    { text: isEnToCh ? selectedWrong[0].ch : selectedWrong[0].en, isCorrect: false },
+    { text: isEnToCh ? selectedWrong[1].ch : selectedWrong[1].en, isCorrect: false }
+  ];
 
-  let cards = [];
-  shuffledList.forEach(item => {
-    cards.push({ text: item.en, pairId: item.en });
-    cards.push({ text: item.ch, pairId: item.en });
-  });
+  // 打亂選項順序
+  choices.sort(() => Math.random() - 0.5);
 
-  cards.sort(() => Math.random() - 0.5);
-
-  cards.forEach(card => {
-    const div = document.createElement("div");
-    div.classList.add("match-card");
-    div.textContent = card.text;
-    div.dataset.pairId = card.pairId;
-    div.addEventListener("click", () => handleCardClick(div, shuffledList.length));
-    matchBoard.appendChild(div);
+  // 渲染按鈕
+  choices.forEach(choice => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.textContent = choice.text;
+    btn.addEventListener("click", () => handleAnswerClick(btn, choice.isCorrect));
+    optionsContainer.appendChild(btn);
   });
 }
 
-function handleCardClick(clickedCard, totalPairs) {
-  if (clickedCard.classList.contains("matched") || clickedCard.classList.contains("selected")) return;
+// 3. 點擊選項後的處理
+function handleAnswerClick(clickedBtn, isCorrect) {
+  if (isAnswerLocked) return;
+  isAnswerLocked = true;
 
-  clickedCard.classList.add("selected");
+  const allButtons = optionsContainer.querySelectorAll(".option-btn");
 
-  if (!firstSelectedCard) {
-    firstSelectedCard = clickedCard;
+  if (isCorrect) {
+    clickedBtn.classList.add("correct");
+    quizFeedback.textContent = "✅ 答對了！太棒了！";
+    quizFeedback.style.color = "#16a34a";
+    
+    // 1.2 秒後自動進入下一題
+    setTimeout(() => {
+      startNewQuestion();
+    }, 1200);
   } else {
-    const firstId = firstSelectedCard.dataset.pairId;
-    const secondId = clickedCard.dataset.pairId;
+    clickedBtn.classList.add("wrong");
+    quizFeedback.textContent = "❌ 答錯囉！";
+    quizFeedback.style.color = "#dc2626";
 
-    if (firstId === secondId) {
-      setTimeout(() => {
-        firstSelectedCard.classList.remove("selected");
-        firstSelectedCard.classList.add("matched");
-        clickedCard.classList.remove("selected");
-        clickedCard.classList.add("matched");
-        firstSelectedCard = null;
-        matchedPairsCount++;
+    // 找出正確答案並標示綠色提示
+    allButtons.forEach(btn => {
+      const isEnToCh = tabEnToCh.classList.contains("active");
+      const targetText = isEnToCh ? currentCorrectItem.ch : currentCorrectItem.en;
+      if (btn.textContent === targetText) {
+        btn.classList.add("correct");
+      }
+    });
 
-        if (matchedPairsCount === totalPairs) {
-          btnResetMatch.classList.remove("hidden");
-        }
-      }, 300);
-    } else {
-      setTimeout(() => {
-        firstSelectedCard.classList.remove("selected");
-        clickedCard.classList.remove("selected");
-        firstSelectedCard = null;
-      }, 500);
-    }
+    // 2 秒後自動進入下一題
+    setTimeout(() => {
+      startNewQuestion();
+    }, 2000);
   }
 }
-
-btnResetMatch.addEventListener("click", startMatchGame);
