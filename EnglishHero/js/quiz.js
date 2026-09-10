@@ -14,18 +14,33 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let allWordsList = []; // 存放全部單字
+let allWordsList = [];
 
-const tabEnToCh = document.getElementById("tab-en-to-ch");
-const tabChToEn = document.getElementById("tab-ch-to-en");
+// DOM 元素
+const mainTabFill = document.getElementById("main-tab-fill");
+const mainTabMatch = document.getElementById("main-tab-match");
+const subModeBox = document.getElementById("sub-mode-box");
+const subTabEnCh = document.getElementById("sub-tab-en-ch");
+const subTabChEn = document.getElementById("sub-tab-ch-en");
 const quizFolderSelect = document.getElementById("quiz-folder-select");
 
-const quizQuestion = document.getElementById("quiz-question");
-const optionsContainer = document.getElementById("options-container");
-const quizFeedback = document.getElementById("quiz-feedback");
+const modeFill = document.getElementById("mode-fill");
+const modeMatch = document.getElementById("mode-match");
 
-let currentCorrectItem = null;
-let isAnswerLocked = false; // 答題鎖定，避免連續點擊
+// 填空元素
+const fillQuestion = document.getElementById("fill-question");
+const fillAnswer = document.getElementById("fill-answer");
+const btnCheckFill = document.getElementById("btn-check-fill");
+const fillFeedback = document.getElementById("fill-feedback");
+
+// 配對元素
+const matchQuestion = document.getElementById("match-question");
+const optionsContainer = document.getElementById("options-container");
+const matchFeedback = document.getElementById("match-feedback");
+
+let currentFillWord = null;
+let currentMatchWord = null;
+let isAnswerLocked = false;
 
 auth.onAuthStateChanged((user) => {
   if (user) {
@@ -35,7 +50,6 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// 1. 抓取使用者的全部單字
 function fetchAllUserData(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
@@ -45,12 +59,9 @@ function fetchAllUserData(uid) {
       snapshot.forEach(doc => {
         const data = doc.data();
         allWordsList.push(data);
-        if (data.folder) {
-          foldersSet.add(data.folder);
-        }
+        if (data.folder) foldersSet.add(data.folder);
       });
 
-      // 建立資料夾下拉選單
       quizFolderSelect.innerHTML = `<option value="ALL">全部資料夾 (綜合測驗)</option>`;
       foldersSet.forEach(folderName => {
         const opt = document.createElement("option");
@@ -60,131 +71,177 @@ function fetchAllUserData(uid) {
       });
 
       if (allWordsList.length === 0) {
-        quizQuestion.textContent = "單字庫為空，請先至「新增單字」建立單字！";
+        fillQuestion.textContent = "單字庫為空，請先至「新增單字」建立！";
+        matchQuestion.textContent = "單字庫為空，請先至「新增單字」建立！";
         return;
       }
 
-      startNewQuestion();
+      initCurrentMode();
     })
     .catch((err) => {
-      quizQuestion.textContent = "資料載入失敗：" + err.message;
+      fillQuestion.textContent = "資料載入失敗：" + err.message;
     });
 }
 
-// 根據目前選擇的資料夾過濾單字
 function getFilteredWords() {
   const selectedFolder = quizFolderSelect.value;
-  if (selectedFolder === "ALL") {
-    return allWordsList;
-  }
+  if (selectedFolder === "ALL") return allWordsList;
   return allWordsList.filter(item => item.folder === selectedFolder);
 }
 
-// 資料夾切換或模式切換時重新出題
 quizFolderSelect.addEventListener("change", () => {
-  startNewQuestion();
+  initCurrentMode();
 });
 
-tabEnToCh.addEventListener("click", () => {
-  tabEnToCh.classList.add("active");
-  tabChToEn.classList.remove("active");
-  startNewQuestion();
+// 大模式切換
+mainTabFill.addEventListener("click", () => {
+  mainTabFill.classList.add("active");
+  mainTabMatch.classList.remove("active");
+  subModeBox.classList.add("hidden");
+  modeFill.classList.remove("hidden");
+  modeMatch.classList.add("hidden");
+  initCurrentMode();
 });
 
-tabChToEn.addEventListener("click", () => {
-  tabChToEn.classList.add("active");
-  tabEnToCh.classList.remove("active");
-  startNewQuestion();
+mainTabMatch.addEventListener("click", () => {
+  mainTabMatch.classList.add("active");
+  mainTabFill.classList.remove("active");
+  subModeBox.classList.remove("hidden");
+  modeMatch.classList.remove("hidden");
+  modeFill.classList.add("hidden");
+  initCurrentMode();
 });
 
-// 2. 產生新題目
-function startNewQuestion() {
+// 配對子模式切換
+subTabEnCh.addEventListener("click", () => {
+  subTabEnCh.classList.add("active");
+  subTabChEn.classList.remove("active");
+  startMatchGame();
+});
+
+subTabChEn.addEventListener("click", () => {
+  subTabChEn.classList.add("active");
+  subTabEnCh.classList.remove("active");
+  startMatchGame();
+});
+
+function initCurrentMode() {
+  if (mainTabFill.classList.contains("active")) {
+    startFillGame();
+  } else {
+    startMatchGame();
+  }
+}
+
+// --- 模式一：填空邏輯 ---
+function startFillGame() {
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) {
+    fillQuestion.textContent = "此資料夾中沒有單字！";
+    fillAnswer.value = "";
+    return;
+  }
+  fillAnswer.value = "";
+  fillFeedback.textContent = "";
+  const randomIndex = Math.floor(Math.random() * currentList.length);
+  currentFillWord = currentList[randomIndex];
+  fillQuestion.textContent = currentFillWord.ch;
+  fillAnswer.focus();
+}
+
+btnCheckFill.addEventListener("click", checkFillAnswer);
+fillAnswer.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") checkFillAnswer();
+});
+
+function checkFillAnswer() {
+  if (!currentFillWord) return;
+  const userInput = fillAnswer.value.trim().toLowerCase();
+  if (!userInput) return;
+
+  if (userInput === currentFillWord.en.toLowerCase()) {
+    fillFeedback.textContent = "✅ 答對了！";
+    fillFeedback.style.color = "#16a34a";
+    setTimeout(startFillGame, 1000);
+  } else {
+    fillFeedback.textContent = "❌ 答錯囉！提示字首: " + currentFillWord.en.charAt(0);
+    fillFeedback.style.color = "#dc2626";
+    fillAnswer.focus();
+  }
+}
+
+// --- 模式二：配對選擇邏輯 (一英三中 / 一中三英) ---
+function startMatchGame() {
   const currentList = getFilteredWords();
   isAnswerLocked = false;
-  quizFeedback.textContent = "";
+  matchFeedback.textContent = "";
   optionsContainer.innerHTML = "";
 
   if (currentList.length === 0) {
-    quizQuestion.textContent = "此資料夾中沒有單字！";
+    matchQuestion.textContent = "此資料夾中沒有單字！";
     return;
   }
 
   if (currentList.length < 3) {
-    quizQuestion.textContent = "⚠️ 該資料夾單字少於 3 個，請至少新增 3 個單字才能進行三選一測驗！";
+    matchQuestion.textContent = "⚠️ 該資料夾單字少於 3 個，請至少新增 3 個單字才能進行選擇測驗！";
     return;
   }
 
-  // 隨機選出一題正解
+  const isEnToCh = subTabEnCh.classList.contains("active");
   const randomIndex = Math.floor(Math.random() * currentList.length);
-  currentCorrectItem = currentList[randomIndex];
-
-  // 決定目前模式：true 為英選中，false 為中選英
-  const isEnToCh = tabEnToCh.classList.contains("active");
+  currentMatchWord = currentList[randomIndex];
 
   if (isEnToCh) {
-    quizQuestion.textContent = `英文：${currentCorrectItem.en}`;
+    matchQuestion.textContent = `英文：${currentMatchWord.en}`;
   } else {
-    quizQuestion.textContent = `中文：${currentCorrectItem.ch}`;
+    matchQuestion.textContent = `中文：${currentMatchWord.ch}`;
   }
 
-  // 從其他單字中隨機挑選 2 個不同的干擾選項
-  let wrongOptions = currentList.filter(item => item.en !== currentCorrectItem.en);
+  let wrongOptions = currentList.filter(item => item.en !== currentMatchWord.en);
   wrongOptions.sort(() => Math.random() - 0.5);
   const selectedWrong = wrongOptions.slice(0, 2);
 
-  // 組合總共 3 個選項（1個正確 + 2個錯誤）
   let choices = [
-    { text: isEnToCh ? currentCorrectItem.ch : currentCorrectItem.en, isCorrect: true },
+    { text: isEnToCh ? currentMatchWord.ch : currentMatchWord.en, isCorrect: true },
     { text: isEnToCh ? selectedWrong[0].ch : selectedWrong[0].en, isCorrect: false },
     { text: isEnToCh ? selectedWrong[1].ch : selectedWrong[1].en, isCorrect: false }
   ];
 
-  // 打亂選項順序
   choices.sort(() => Math.random() - 0.5);
 
-  // 渲染按鈕
   choices.forEach(choice => {
     const btn = document.createElement("button");
     btn.classList.add("option-btn");
     btn.textContent = choice.text;
-    btn.addEventListener("click", () => handleAnswerClick(btn, choice.isCorrect));
+    btn.addEventListener("click", () => handleMatchClick(btn, choice.isCorrect));
     optionsContainer.appendChild(btn);
   });
 }
 
-// 3. 點擊選項後的處理
-function handleAnswerClick(clickedBtn, isCorrect) {
+function handleMatchClick(clickedBtn, isCorrect) {
   if (isAnswerLocked) return;
   isAnswerLocked = true;
 
   const allButtons = optionsContainer.querySelectorAll(".option-btn");
+  const isEnToCh = subTabEnCh.classList.contains("active");
+  const targetText = isEnToCh ? currentMatchWord.ch : currentMatchWord.en;
 
   if (isCorrect) {
     clickedBtn.classList.add("correct");
-    quizFeedback.textContent = "✅ 答對了！太棒了！";
-    quizFeedback.style.color = "#16a34a";
-    
-    // 1.2 秒後自動進入下一題
-    setTimeout(() => {
-      startNewQuestion();
-    }, 1200);
+    matchFeedback.textContent = "✅ 答對了！";
+    matchFeedback.style.color = "#16a34a";
+    setTimeout(startMatchGame, 1000);
   } else {
     clickedBtn.classList.add("wrong");
-    quizFeedback.textContent = "❌ 答錯囉！";
-    quizFeedback.style.color = "#dc2626";
+    matchFeedback.textContent = "❌ 答錯囉！";
+    matchFeedback.style.color = "#dc2626";
 
-    // 找出正確答案並標示綠色提示
     allButtons.forEach(btn => {
-      const isEnToCh = tabEnToCh.classList.contains("active");
-      const targetText = isEnToCh ? currentCorrectItem.ch : currentCorrectItem.en;
       if (btn.textContent === targetText) {
         btn.classList.add("correct");
       }
     });
 
-    // 2 秒後自動進入下一題
-    setTimeout(() => {
-      startNewQuestion();
-    }, 2000);
+    setTimeout(startMatchGame, 1800);
   }
 }
