@@ -84,12 +84,13 @@ btnCancelNewFolder.addEventListener("click", () => {
   btnToggleNewFolder.classList.remove("hidden");
 });
 
-// 自動查中文按鈕事件
+// 自動查中文與詞性按鈕事件
 if (btnAutoTranslate) {
   btnAutoTranslate.addEventListener("click", async () => {
     const enInput = document.getElementById("word-en");
     const chInput = document.getElementById("word-ch");
-    const textToTranslate = enInput.value.trim();
+    const posSelect = document.getElementById("word-pos");
+    const textToTranslate = enInput.value.trim().toLowerCase();
 
     if (!textToTranslate) {
       alert("請先輸入英文單字！");
@@ -100,18 +101,50 @@ if (btnAutoTranslate) {
     btnAutoTranslate.textContent = "查詢中...";
     
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|zh-TW`;
-      const response = await fetch(url);
-      const data = await response.json();
+      const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(textToTranslate)}`;
+      const translateUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|zh-TW`;
 
-      if (data && data.responseData && data.responseData.translatedText) {
-        chInput.value = data.responseData.translatedText;
-      } else {
+      const [dictRes, translateRes] = await Promise.all([
+        fetch(dictUrl).catch(() => null),
+        fetch(translateUrl).catch(() => null)
+      ]);
+
+      // 處理詞性自動對應
+      if (dictRes && dictRes.ok) {
+        const dictData = await dictRes.json();
+        if (dictData && dictData[0] && dictData[0].meanings && dictData[0].meanings.length > 0) {
+          const rawPartOFSpeech = dictData[0].meanings[0].partOfSpeech;
+          
+          let mappedPos = "";
+          if (rawPartOFSpeech === "noun") mappedPos = "n.";
+          else if (rawPartOFSpeech === "verb") mappedPos = "v.";
+          else if (rawPartOFSpeech === "adjective") mappedPos = "adj.";
+          else if (rawPartOFSpeech === "adverb") mappedPos = "adv.";
+          else if (rawPartOFSpeech === "preposition") mappedPos = "prep.";
+          else if (rawPartOFSpeech === "conjunction") mappedPos = "conj.";
+          else if (rawPartOFSpeech === "interjection") mappedPos = "phr.";
+          
+          if (mappedPos && posSelect) {
+            posSelect.value = mappedPos;
+          }
+        }
+      }
+
+      // 處理中文翻譯填入
+      if (translateRes && translateRes.ok) {
+        const transData = await translateRes.json();
+        if (transData && transData.responseData && transData.responseData.translatedText) {
+          chInput.value = transData.responseData.translatedText;
+        }
+      }
+
+      if (!chInput.value) {
         alert("找不到對應的中文，請手動輸入。");
       }
+
     } catch (error) {
-      console.error("翻譯發生錯誤：", error);
-      alert("自動翻譯連線失敗，請手動輸入中文。");
+      console.error("自動查詢發生錯誤：", error);
+      alert("自動查詢連線失敗，請手動輸入。");
     } finally {
       btnAutoTranslate.textContent = "✨ 自動查中文";
     }
@@ -137,7 +170,7 @@ if (addForm) {
     }
 
     const en = document.getElementById("word-en").value.trim();
-    const pos = document.getElementById("word-pos").value; // 取得詞性
+    const pos = document.getElementById("word-pos") ? document.getElementById("word-pos").value : "";
     const ch = document.getElementById("word-ch").value.trim();
 
     msgEl.textContent = "儲存中...";
@@ -146,7 +179,7 @@ if (addForm) {
     db.collection("users").doc(currentUser.uid).collection("words").add({
       folder: folder,
       en: en,
-      pos: pos,  // 儲存詞性欄位
+      pos: pos,
       ch: ch,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     })
@@ -154,9 +187,11 @@ if (addForm) {
       msgEl.textContent = "✅ 新增成功！";
       msgEl.className = "msg success";
       
-      // 清空輸入並重設選單
+      // 清空輸入並重設欄位
       document.getElementById("word-en").value = "";
-      document.getElementById("word-pos").value = "";
+      if (document.getElementById("word-pos")) {
+        document.getElementById("word-pos").value = "";
+      }
       document.getElementById("word-ch").value = "";
       document.getElementById("word-en").focus();
       
