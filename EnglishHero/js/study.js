@@ -28,7 +28,7 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2060");
+    window.location.replace("login.html?v=2062");
   }
 });
 
@@ -54,7 +54,7 @@ function fetchAllWords(uid) {
     });
 }
 
-// 渲染資料夾清單（支援左滑刪除、檢視、考單字）
+// 渲染資料夾清單（電腦版三個點選單、手機版左滑顯示操作）
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
@@ -74,19 +74,34 @@ function renderFolderList() {
   }
 
   let html = "";
-  folders.forEach(folderName => {
+  folders.forEach((folderName, index) => {
     const count = folderMap[folderName].length;
     html += `
       <div class="folder-wrapper" id="wrapper-${folderName}">
-        <div class="folder-actions-bg">刪除</div>
-        <div class="folder-item" id="folder-card-${folderName}" data-folder="${folderName}">
+        <!-- 手機版左滑顯示的按鈕區 -->
+        <div class="folder-actions-hidden">
+          <button class="btn-swipe-view" onclick="viewFolderWords('${folderName}')">🔍 檢視</button>
+          <button class="btn-swipe-quiz" onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
+          <button class="btn-swipe-del" onclick="confirmDeleteFolder('${folderName}')">🗑️ 刪除</button>
+        </div>
+        
+        <!-- 資料夾主卡片 -->
+        <div class="folder-item" id="folder-card-${index}" data-folder="${folderName}">
           <div class="folder-info">
             <h3>📁 ${folderName}</h3>
-            <p>共 ${count} 個單字 (可向左滑動刪除)</p>
+            <p>共 ${count} 個單字</p>
           </div>
-          <div class="btn-group">
-            <button class="btn-view" onclick="viewFolderWords('${folderName}')">🔍 檢視</button>
-            <button class="btn-quiz" onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
+          
+          <!-- 電腦版三個點選單 -->
+          <div class="desktop-actions">
+            <div class="dots-container">
+              <button class="dots-btn" onclick="toggleDropdown(event, '${index}')">⋮</button>
+              <div class="dropdown-menu" id="dropdown-${index}">
+                <button onclick="viewFolderWords('${folderName}')">🔍 檢視單字</button>
+                <button onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
+                <button class="text-danger" onclick="confirmDeleteFolder('${folderName}')">🗑️ 刪除資料夾</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -95,15 +110,39 @@ function renderFolderList() {
 
   containerEl.innerHTML = html;
   initSwipeToDelete();
+  initGlobalDropdownClose();
 }
 
-// 實作資料夾往左滑動彈出是否刪除
+// 切換電腦版三個點下拉選單顯示狀態
+window.toggleDropdown = function(event, index) {
+  event.stopPropagation();
+  // 先關閉其他開啟中的選單
+  document.querySelectorAll('.dropdown-menu').forEach((menu, idx) => {
+    if (idx.toString() !== index.toString()) {
+      menu.classList.remove('show');
+    }
+  });
+  const menu = document.getElementById(`dropdown-${index}`);
+  if (menu) {
+    menu.classList.toggle('show');
+  }
+};
+
+// 點擊畫面其他地方自動關閉下拉選單
+function initGlobalDropdownClose() {
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+      menu.classList.remove('show');
+    });
+  });
+}
+
+// 手機版左滑顯示隱藏按鈕支援
 function initSwipeToDelete() {
   const cards = document.querySelectorAll('.folder-item');
   
   cards.forEach(card => {
     let startX = 0;
-    let currentTranslateX = 0;
     const folderName = card.getAttribute('data-folder');
 
     card.addEventListener('touchstart', (e) => {
@@ -113,8 +152,8 @@ function initSwipeToDelete() {
     card.addEventListener('touchmove', (e) => {
       const touchX = e.touches[0].clientX;
       const diff = touchX - startX;
-      // 限制只能向左滑動 (diff < 0)
-      if (diff < 0 && diff > -120) {
+      // 限制向左滑動距離最多 150px 展開按鈕
+      if (diff < 0 && diff > -170) {
         card.style.transform = `translateX(${diff}px)`;
       }
     }, {passive: true});
@@ -123,16 +162,9 @@ function initSwipeToDelete() {
       const endX = e.changedTouches[0].clientX;
       const diff = endX - startX;
       
-      // 如果向左滑動超過 70px，觸發刪除確認
+      // 如果向左滑動超過 70px，定位在展開位置 (-150px)
       if (diff < -70) {
-        card.style.transform = `translateX(-100px)`;
-        setTimeout(() => {
-          if (confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) {
-            deleteFolder(folderName);
-          } else {
-            card.style.transform = `translateX(0px)`;
-          }
-        }, 150);
+        card.style.transform = `translateX(-150px)`;
       } else {
         card.style.transform = `translateX(0px)`;
       }
@@ -140,7 +172,13 @@ function initSwipeToDelete() {
   });
 }
 
-// 檢視特定資料夾底下的所有單字
+// 刪除資料夾確認
+window.confirmDeleteFolder = function(folderName) {
+  if (confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) {
+    deleteFolder(folderName);
+  }
+};
+
 window.viewFolderWords = function(folderName) {
   currentViewingFolder = folderName;
   pageTitleEl.textContent = `📁 資料夾：${folderName}`;
@@ -174,9 +212,8 @@ window.viewFolderWords = function(folderName) {
   containerEl.innerHTML = html;
 };
 
-// 進入指定資料夾的「考單字」測驗模式
 window.startFolderQuiz = function(folderName) {
-  window.location.href = `quiz.html?folder=${encodeURIComponent(folderName)}&v=2060`;
+  window.location.href = `quiz.html?folder=${encodeURIComponent(folderName)}&v=2062`;
 };
 
 if (btnBackFolders) {
@@ -185,7 +222,6 @@ if (btnBackFolders) {
   });
 }
 
-// 開啟精美修改表單
 window.openEditModal = function(wordId) {
   const target = allWords.find(w => w.id === wordId);
   if (!target) return;
