@@ -4,39 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>English Hero - 背單字</title>
-  <link rel="stylesheet" href="css/style.css?v=2041">
+  <link rel="stylesheet" href="css/style.css?v=2043">
   <style>
     .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
-    .word-card { border: 2px solid #e5e7eb; background: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 16px; cursor: pointer; transition: 0.2s; }
+    .word-card { border: 2px solid #e5e7eb; background: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 16px; cursor: pointer; transition: 0.2s; position: relative; text-align: left; }
     .word-card:hover { border-color: #3b82f6; background: #fff; }
-    .en-word { font-size: 26px; font-weight: bold; color: #1d4ed8; margin-bottom: 8px; }
-    .ch-word { font-size: 18px; color: #4b5563; }
+    .en-word { font-size: 32px; font-weight: bold; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
+    .ch-word { font-size: 26px; font-weight: bold; color: #1f2937; margin-bottom: 8px; text-align: center; }
     .folder-badge { display: inline-block; font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; }
+    .setup-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: left; }
+    .setup-box label { display: block; font-weight: bold; color: #334155; margin-bottom: 8px; }
+    .setup-box select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px; margin-bottom: 12px; }
+    .btn-start { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn-start:hover { background: #1d4ed8; }
   </style>
 </head>
 <body class="dashboard-body">
 
 <header class="main-header">
   <div class="logo">
-    <a href="index.html?v=2041" style="text-decoration: none; color: inherit;">📚 English Hero - 背單字</a>
+    <a href="index.html?v=2043" style="text-decoration: none; color: inherit;">📚 English Hero - 背單字</a>
   </div>
   <div class="user-panel">
-    <a href="index.html?v=2041" class="btn-back">回首頁</a>
+    <a href="index.html?v=2043" class="btn-back">回首頁</a>
   </div>
 </header>
 
 <div class="study-container">
   <h2 style="color: #333; margin-bottom: 5px;">單字庫瀏覽</h2>
-  <p style="color: #888; margin-bottom: 25px;">點擊字卡可切換中英文，右上角隨時顯示詞性</p>
+  <p style="color: #888; margin-bottom: 20px;">請先選擇資料夾，再開始背單字！</p>
   
-  <div id="flashcard-container">
-    <p style="color:#666;">載入中...</p>
+  <div id="setup-section" class="setup-box">
+    <label for="study-folder-select">📁 選擇要背誦的資料夾：</label>
+    <select id="study-folder-select">
+      <option value="">載入資料夾中...</option>
+    </select>
+    <button id="btn-start-study" class="btn-start">🚀 開始背單字</button>
   </div>
+
+  <div id="flashcard-container" style="display: none;"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="js/study.js?v=2041"></script>
+<script src="js/study.js?v=2043"></script>
 </body>
 </html>
