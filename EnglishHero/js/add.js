@@ -23,6 +23,7 @@ const btnToggleNewFolder = document.getElementById("btn-toggle-new-folder");
 const btnCancelNewFolder = document.getElementById("btn-cancel-new-folder");
 const addForm = document.getElementById("add-word-form");
 const msgEl = document.getElementById("add-msg");
+const btnAutoTranslate = document.getElementById("btn-auto-translate");
 
 // 驗證登入並載入現有資料夾
 auth.onAuthStateChanged((user) => {
@@ -83,13 +84,46 @@ btnCancelNewFolder.addEventListener("click", () => {
   btnToggleNewFolder.classList.remove("hidden");
 });
 
+// 自動查中文按鈕事件
+if (btnAutoTranslate) {
+  btnAutoTranslate.addEventListener("click", async () => {
+    const enInput = document.getElementById("word-en");
+    const chInput = document.getElementById("word-ch");
+    const textToTranslate = enInput.value.trim();
+
+    if (!textToTranslate) {
+      alert("請先輸入英文單字！");
+      enInput.focus();
+      return;
+    }
+
+    btnAutoTranslate.textContent = "查詢中...";
+    
+    try {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|zh-TW`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data && data.responseData && data.responseData.translatedText) {
+        chInput.value = data.responseData.translatedText;
+      } else {
+        alert("找不到對應的中文，請手動輸入。");
+      }
+    } catch (error) {
+      console.error("翻譯發生錯誤：", error);
+      alert("自動翻譯連線失敗，請手動輸入中文。");
+    } finally {
+      btnAutoTranslate.textContent = "✨ 自動查中文";
+    }
+  });
+}
+
 // 表單送出儲存
 if (addForm) {
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!currentUser) return;
 
-    // 判斷要使用下拉選單的值，還是新輸入的資料夾名稱
     let folder = "";
     if (!newFolderGroup.classList.contains("hidden")) {
       folder = newFolderInput.value.trim();
@@ -121,10 +155,8 @@ if (addForm) {
       document.getElementById("word-ch").value = "";
       document.getElementById("word-en").focus();
       
-      // 重新載入資料夾清單（若剛才是新增了全新資料夾，會自動被收錄進下拉選單）
       loadUserFolders(currentUser.uid);
       
-      // 如果剛才是用新增資料夾模式，存完後自動切回下拉選單鎖定該新資料夾
       if (!newFolderGroup.classList.contains("hidden")) {
         btnCancelNewFolder.click();
         folderSelect.value = folder;
