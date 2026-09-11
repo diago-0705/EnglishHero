@@ -16,10 +16,10 @@ const db = firebase.firestore();
 
 let currentUser = null;
 let allWords = []; 
-let currentFolderWords = []; // 目前正在背的資料夾單字
+let currentFolderWords = []; 
 let currentIndex = 0;
 let isFlipped = false;
-let currentFolderForManagement = ""; // 紀錄目前管理的資料夾
+let currentFolderForManagement = ""; 
 
 const containerEl = document.getElementById("flashcard-container");
 const pageTitleEl = document.getElementById("page-title");
@@ -31,7 +31,7 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2072");
+    window.location.replace("login.html?v=2074");
   }
 });
 
@@ -57,7 +57,7 @@ function fetchAllWords(uid) {
     });
 }
 
-// 渲染資料夾清單：點擊卡片直接進入背單字模式
+// 渲染資料夾清單：最下方加入「📥 匯入資料」按鈕
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
@@ -71,34 +71,114 @@ function renderFolderList() {
 
   const folders = Object.keys(folderMap);
 
-  if (folders.length === 0) {
-    containerEl.innerHTML = `<p style="text-align: center; color: #666; padding: 20px;">目前沒有任何單字，快去新增單字吧！</p>`;
-    return;
-  }
-
   let html = "";
-  folders.forEach((folderName, index) => {
-    const count = folderMap[folderName].length;
-    html += `
-      <div class="folder-wrapper">
-        <div class="folder-item" onclick="startStudy('${folderName}')">
-          <div class="folder-info">
-            <h3>📁 ${folderName}</h3>
-            <p>共 ${count} 個單字 (點擊開始背單字)</p>
-          </div>
-          
-          <div class="dots-container" onclick="event.stopPropagation()">
-            <button class="dots-btn" id="dots-btn-${index}" onclick="toggleFolderDropdown(event, '${folderName}', '${index}')">⚙️</button>
+  if (folders.length === 0) {
+    html += `<p style="text-align: center; color: #666; padding: 10px 0 20px 0;">目前沒有任何單字，快去新增單字吧！</p>`;
+  } else {
+    folders.forEach((folderName, index) => {
+      const count = folderMap[folderName].length;
+      html += `
+        <div class="folder-wrapper">
+          <div class="folder-item" onclick="startStudy('${folderName}')">
+            <div class="folder-info">
+              <h3>📁 ${folderName}</h3>
+              <p>共 ${count} 個單字 (點擊開始背單字)</p>
+            </div>
+            
+            <div class="dots-container" onclick="event.stopPropagation()">
+              <button class="dots-btn" id="dots-btn-${index}" onclick="toggleFolderDropdown(event, '${folderName}', '${index}')">⚙️</button>
+            </div>
           </div>
         </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
+
+  // 在資料夾清單最下方加入匯入按鈕與隱藏的 file input
+  html += `
+    <div style="margin-top: 30px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 20px;">
+      <button onclick="document.getElementById('import-file-input').click()" style="padding: 10px 20px; background: #6366f1; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 4px 10px rgba(99,102,241,0.2);">📥 匯入單字資料 (JSON)</button>
+      <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importData(event)">
+    </div>
+  `;
 
   containerEl.innerHTML = html;
 }
 
-// 資料夾右側的管理選單（包含「修改單字」與「刪除資料夾」）
+// 匯出特定資料夾成 JSON 檔案（放在齒輪管理選單內）
+window.exportFolderData = function(folderName) {
+  const targetWords = allWords.filter(w => w.folder === folderName);
+  if (targetWords.length === 0) {
+    alert("這個資料夾沒有單字可以匯出！");
+    return;
+  }
+
+  const exportDataObj = targetWords.map(w => ({
+    en: w.en,
+    pos: w.pos,
+    ch: w.ch,
+    folder: w.folder
+  }));
+
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportDataObj, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `english_hero_${folderName}_backup.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+};
+
+// 匯入 JSON 檔案並寫入 Firestore
+window.importData = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importedWords = JSON.parse(e.target.result);
+      if (!Array.isArray(importedWords)) {
+        alert("檔案格式錯誤！");
+        return;
+      }
+
+      if (!confirm(`確定要匯入這 ${importedWords.length} 個單字嗎？`)) {
+        event.target.value = "";
+        return;
+      }
+
+      const batch = db.batch();
+      const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
+
+      importedWords.forEach(w => {
+        if (w.en && w.ch) {
+          const newDocRef = userWordsRef.doc();
+          batch.set(newDocRef, {
+            en: w.en,
+            pos: w.pos || "n.",
+            ch: w.ch,
+            folder: w.folder || "匯入分類"
+          });
+        }
+      });
+
+      batch.commit().then(() => {
+        alert("資料匯入成功！");
+        event.target.value = "";
+        fetchAllWords(currentUser.uid);
+      }).catch(err => {
+        alert("匯入失敗：" + err.message);
+      });
+
+    } catch (err) {
+      alert("解析 JSON 檔案失敗：" + err.message);
+    }
+  };
+  reader.readAsText(file);
+};
+
+// 資料夾管理選單（加入「📤 匯出資料夾」選項）
 window.toggleFolderDropdown = function(event, folderName, index) {
   event.stopPropagation();
   
@@ -122,11 +202,12 @@ window.toggleFolderDropdown = function(event, folderName, index) {
   menu.style.borderRadius = "8px";
   menu.style.boxShadow = "0 10px 25px rgba(0,0,0,0.2)";
   menu.style.zIndex = "999999";
-  menu.style.minWidth = "160px";
+  menu.style.minWidth = "170px";
   menu.style.padding = "4px 0";
 
   menu.innerHTML = `
     <button onclick="openFolderEditModal('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #334155; font-weight: bold;">✏️ 修改單字</button>
+    <button onclick="exportFolderData('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #10b981; font-weight: bold;">📤 匯出此資料夾</button>
     <button onclick="confirmDeleteFolder('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #ef4444; font-weight: bold;">🗑️ 刪除資料夾</button>
   `;
 
@@ -155,7 +236,6 @@ window.startStudy = function(folderName) {
   renderFlashcard();
 };
 
-// 渲染互動式翻面字卡（正面背面皆顯示詞性，點擊翻面看中文）
 function renderFlashcard() {
   if (currentFolderWords.length === 0) {
     containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾沒有單字。</p>`;
@@ -166,7 +246,6 @@ function renderFlashcard() {
 
   containerEl.innerHTML = `
     <div id="flashcard-box" class="word-card" onclick="flipCard()">
-      <!-- 詞性標籤：永遠顯示在右上角 -->
       <span style="position: absolute; top: 16px; right: 20px; font-size: 14px; font-weight: bold; color: #0284c7; background: #e0f2fe; padding: 3px 10px; border-radius: 6px;">
         ${word.pos || '未分類'}
       </span>
@@ -183,7 +262,6 @@ function renderFlashcard() {
       </div>
     </div>
 
-    <!-- 上一張 / 下一張 按鈕與計數器 -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
       <button onclick="prevCard()" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">⬅️ 上一張</button>
       <span style="font-size: 15px; font-weight: bold; color: #475569;">${currentIndex + 1} / ${currentFolderWords.length}</span>
@@ -211,14 +289,12 @@ window.nextCard = function() {
   renderFlashcard();
 };
 
-// 返回資料夾列表
 if (btnBackFolders) {
   btnBackFolders.addEventListener("click", () => {
     renderFolderList();
   });
 }
 
-// 點擊管理中的「修改單字」：會列出該資料夾的所有單字供逐一修改
 window.openFolderEditModal = function(folderName) {
   currentFolderForManagement = folderName;
   const targetWords = allWords.filter(w => w.folder === folderName);
@@ -252,7 +328,6 @@ window.openFolderEditModal = function(folderName) {
   containerEl.innerHTML = html;
 };
 
-// 開啟單一單字修改彈窗（採用新增單字模板）
 window.openSingleEditModal = function(wordId) {
   const target = allWords.find(w => w.id === wordId);
   if (!target) return;
