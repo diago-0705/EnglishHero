@@ -84,7 +84,7 @@ btnCancelNewFolder.addEventListener("click", () => {
   btnToggleNewFolder.classList.remove("hidden");
 });
 
-// 自動查中文與詞性按鈕事件
+// 自動查中文與詞性按鈕事件（穩定獨立查詢版）
 if (btnAutoTranslate) {
   btnAutoTranslate.addEventListener("click", async () => {
     const enInput = document.getElementById("word-en");
@@ -101,41 +101,40 @@ if (btnAutoTranslate) {
     btnAutoTranslate.textContent = "查詢中...";
     
     try {
-      const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(textToTranslate)}`;
+      // 1. 先抓中文翻譯
       const translateUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|zh-TW`;
+      const transRes = await fetch(translateUrl);
+      const transData = await transRes.json();
 
-      const [dictRes, translateRes] = await Promise.all([
-        fetch(dictUrl).catch(() => null),
-        fetch(translateUrl).catch(() => null)
-      ]);
-
-      // 處理詞性自動對應
-      if (dictRes && dictRes.ok) {
-        const dictData = await dictRes.json();
-        if (dictData && dictData[0] && dictData[0].meanings && dictData[0].meanings.length > 0) {
-          const rawPartOFSpeech = dictData[0].meanings[0].partOfSpeech;
-          
-          let mappedPos = "";
-          if (rawPartOFSpeech === "noun") mappedPos = "n.";
-          else if (rawPartOFSpeech === "verb") mappedPos = "v.";
-          else if (rawPartOFSpeech === "adjective") mappedPos = "adj.";
-          else if (rawPartOFSpeech === "adverb") mappedPos = "adv.";
-          else if (rawPartOFSpeech === "preposition") mappedPos = "prep.";
-          else if (rawPartOFSpeech === "conjunction") mappedPos = "conj.";
-          else if (rawPartOFSpeech === "interjection") mappedPos = "phr.";
-          
-          if (mappedPos && posSelect) {
-            posSelect.value = mappedPos;
-          }
-        }
+      if (transData && transData.responseData && transData.responseData.translatedText) {
+        chInput.value = transData.responseData.translatedText;
       }
 
-      // 處理中文翻譯填入
-      if (translateRes && translateRes.ok) {
-        const transData = await translateRes.json();
-        if (transData && transData.responseData && transData.responseData.translatedText) {
-          chInput.value = transData.responseData.translatedText;
+      // 2. 獨立去抓詞性
+      try {
+        const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(textToTranslate)}`;
+        const dictRes = await fetch(dictUrl);
+        if (dictRes.ok) {
+          const dictData = await dictRes.json();
+          if (dictData && dictData[0] && dictData[0].meanings && dictData[0].meanings.length > 0) {
+            const rawPartOFSpeech = dictData[0].meanings[0].partOfSpeech;
+            
+            let mappedPos = "";
+            if (rawPartOFSpeech === "noun") mappedPos = "n.";
+            else if (rawPartOFSpeech === "verb") mappedPos = "v.";
+            else if (rawPartOFSpeech === "adjective") mappedPos = "adj.";
+            else if (rawPartOFSpeech === "adverb") mappedPos = "adv.";
+            else if (rawPartOFSpeech === "preposition") mappedPos = "prep.";
+            else if (rawPartOFSpeech === "conjunction") mappedPos = "conj.";
+            else if (rawPartOFSpeech === "interjection") mappedPos = "phr.";
+            
+            if (mappedPos && posSelect) {
+              posSelect.value = mappedPos;
+            }
+          }
         }
+      } catch (dictErr) {
+        console.log("詞性查詢跳過", dictErr);
       }
 
       if (!chInput.value) {
