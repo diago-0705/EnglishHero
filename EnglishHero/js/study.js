@@ -15,172 +15,154 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let currentUser = null;
-let wordsList = [];
-let currentIndex = 0;
-let isFlipped = false;
-
-const setupSection = document.getElementById("setup-section");
-const folderSelect = document.getElementById("study-folder-select");
-const btnStart = document.getElementById("btn-start-study");
+let allWords = []; // 儲存所有單字
 const containerEl = document.getElementById("flashcard-container");
+const pageTitleEl = document.getElementById("page-title");
+const btnBackFolders = document.getElementById("btn-back-folders");
 
-// 驗證登入並載入資料夾清單
+// 驗證登入
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
-    loadFolders(user.uid);
+    fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2026");
+    window.location.replace("login.html?v=2050");
   }
 });
 
-// 抓取使用者的所有資料夾並填入下拉選單
-function loadFolders(uid) {
+// 抓取該使用者所有的單字
+function fetchAllWords(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
-      const foldersSet = new Set();
+      allWords = [];
       snapshot.forEach(doc => {
         const data = doc.data();
-        if (data.folder) foldersSet.add(data.folder);
-      });
-
-      folderSelect.innerHTML = `<option value="all">📁 全部單字</option>`;
-      foldersSet.forEach(folderName => {
-        const opt = document.createElement("option");
-        opt.value = folderName;
-        opt.textContent = folderName;
-        folderSelect.appendChild(opt);
-      });
-    })
-    .catch((err) => {
-      console.error("載入資料夾失敗：", err);
-      folderSelect.innerHTML = `<option value="all">📁 全部單字 (載入失敗)</option>`;
-    });
-}
-
-// 點擊「開始背單字」按鈕
-if (btnStart) {
-  btnStart.addEventListener("click", () => {
-    if (!currentUser) return;
-    const selectedFolder = folderSelect.value;
-    
-    // 隱藏設定區，顯示字卡區
-    setupSection.style.display = "none";
-    containerEl.style.display = "block";
-    
-    loadWordsToStudy(currentUser.uid, selectedFolder);
-  });
-}
-
-// 根據選擇的資料夾讀取單字
-function loadWordsToStudy(uid, folderName) {
-  let query = db.collection("users").doc(uid).collection("words");
-  
-  if (folderName && folderName !== "all") {
-    query = query.where("folder", "==", folderName);
-  }
-
-  query.get()
-    .then((snapshot) => {
-      wordsList = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        wordsList.push({
+        allWords.push({
           id: doc.id,
           en: data.en || "",
           pos: data.pos || "",
           ch: data.ch || "",
-          folder: data.folder || "預設分類"
+          folder: data.folder || "未分類"
         });
       });
-
-      currentIndex = 0;
-      isFlipped = false;
-      renderCard();
+      renderFolderList();
     })
     .catch((err) => {
-      console.error("讀取單字失敗：", err);
-      containerEl.innerHTML = `
-        <div class="word-card">
-          <div style="color:red; text-align:center;">載入單字失敗，請重新整理</div>
-        </div>
-      `;
+      console.error("載入失敗：", err);
+      containerEl.innerHTML = `<p style="color:red; text-align:center;">載入單字失敗</p>`;
     });
 }
 
-// 渲染字卡（詞性永遠在右上角）
-function renderCard() {
-  if (!containerEl) return;
+// 顯示資料夾條列清單
+function renderFolderList() {
+  pageTitleEl.textContent = "📁 我的單字資料夾";
+  btnBackFolders.style.display = "none";
 
-  if (wordsList.length === 0) {
-    containerEl.innerHTML = `
-      <div class="word-card" style="text-align: center;">
-        <div style="font-size: 20px; color: #666; font-weight: bold;">這個分類目前沒有單字</div>
-        <div style="font-size: 14px; color: #888; margin-top: 8px;">請先去新增單字頁加入單字！</div>
-        <button onclick="location.reload()" style="margin-top: 15px; padding: 8px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer;">⬅️ 重新選擇資料夾</button>
-      </div>
-    `;
+  // 統計每個資料夾的單字數量
+  const folderMap = {};
+  allWords.forEach(w => {
+    if (!folderMap[w.folder]) folderMap[w.folder] = [];
+    folderMap[w.folder].push(w);
+  });
+
+  const folders = Object.keys(folderMap);
+
+  if (folders.length === 0) {
+    containerEl.innerHTML = `<p style="text-align: center; color: #666; padding: 20px;">目前沒有任何單字，快去新增單字吧！</p>`;
     return;
   }
 
-  const currentWord = wordsList[currentIndex];
-  
-  containerEl.innerHTML = `
-    <div id="word-card-box" class="word-card">
-      
-      <span style="position: absolute; top: 16px; right: 20px; font-size: 14px; font-weight: bold; color: #0284c7; background: #e0f2fe; padding: 3px 10px; border-radius: 6px;">
-        ${currentWord.pos || '未分類'}
-      </span>
-      
-      <div class="folder-badge">📁 ${currentWord.folder}</div>
-      
-      <div style="margin-top: 12px; cursor: pointer;">
-        ${!isFlipped ? `
-          <div class="en-word">${currentWord.en}</div>
-          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px; text-align: center;">👆 點擊卡片看中文</div>
-        ` : `
-          <div class="ch-word">${currentWord.ch}</div>
-          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px; text-align: center;">👆 點擊卡片看英文</div>
-        `}
+  let html = "";
+  folders.forEach(folderName => {
+    const count = folderMap[folderName].length;
+    html += `
+      <div class="folder-item">
+        <div class="folder-info">
+          <h3>📁 ${folderName}</h3>
+          <p>共 ${count} 個單字</p>
+        </div>
+        <div class="btn-group">
+          <button class="btn-view" onclick="viewFolderWords('${folderName}')">🔍 檢視單字</button>
+          <button class="btn-del" onclick="deleteFolder('${folderName}')">🗑️ 刪除資料夾</button>
+        </div>
       </div>
+    `;
+  });
 
-      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f3f4f6; padding-top: 14px;">
-        <button id="btn-prev" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">⬅️ 上一張</button>
-        <span style="font-size: 14px; color: #6b7280; font-weight: bold;">${currentIndex + 1} / ${wordsList.length}</span>
-        <button id="btn-next" style="padding: 8px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">下一張 ➡️</button>
-      </div>
-    </div>
-    
-    <div style="text-align: center; margin-top: 10px;">
-      <button onclick="location.reload()" style="background: none; border: none; color: #64748b; font-size: 14px; cursor: pointer; text-decoration: underline;">🔄 重新選擇其他資料夾</button>
-    </div>
-  `;
+  containerEl.innerHTML = html;
+}
 
-  // 綁定翻面
-  const cardBox = document.getElementById("word-card-box");
-  if (cardBox) {
-    cardBox.addEventListener("click", (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      isFlipped = !isFlipped;
-      renderCard();
-    });
+// 檢視特定資料夾底下的所有單字（條列式）
+window.viewFolderWords = function(folderName) {
+  pageTitleEl.textContent = `📁 資料夾：${folderName}`;
+  btnBackFolders.style.display = "block";
+
+  const targetWords = allWords.filter(w => w.folder === folderName);
+
+  if (targetWords.length === 0) {
+    containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾裡沒有單字。</p>`;
+    return;
   }
 
-  // 上一張
-  document.getElementById("btn-prev").addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (wordsList.length === 0) return;
-    currentIndex = (currentIndex - 1 + wordsList.length) % wordsList.length;
-    isFlipped = false;
-    renderCard();
+  let html = `<div style="background: #f8fafc; padding: 10px; border-radius: 8px;">`;
+  targetWords.forEach(w => {
+    html += `
+      <div class="word-row">
+        <div>
+          <span style="font-size: 16px; font-weight: bold; color: #1d4ed8;">${w.en}</span>
+          <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${w.pos || '無詞性'}</span>
+          <div style="font-size: 14px; color: #4b5563; margin-top: 2px;">${w.ch}</div>
+        </div>
+        <button onclick="deleteSingleWord('${w.id}', '${folderName}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
+      </div>
+    `;
   });
+  html += `</div>`;
 
-  // 下一張
-  document.getElementById("btn-next").addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (wordsList.length === 0) return;
-    currentIndex = (currentIndex + 1) % wordsList.length;
-    isFlipped = false;
-    renderCard();
+  containerEl.innerHTML = html;
+};
+
+// 返回資料夾清單按鈕事件
+if (btnBackFolders) {
+  btnBackFolders.addEventListener("click", () => {
+    renderFolderList();
   });
 }
+
+// 刪除單一單字
+window.deleteSingleWord = function(wordId, currentFolderName) {
+  if (!confirm("確定要刪除這個單字嗎？")) return;
+
+  db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).delete()
+    .then(() => {
+      // 從本地陣列移除並重新整理畫面
+      allWords = allWords.filter(w => w.id !== wordId);
+      viewFolderWords(currentFolderName);
+    })
+    .catch(err => {
+      alert("刪除失敗：" + err.message);
+    });
+};
+
+// 刪除整個資料夾底下的所有單字
+window.deleteFolder = function(folderName) {
+  if (!confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？此動作無法復原！`)) return;
+
+  const targetWords = allWords.filter(w => w.folder === folderName);
+  const batch = db.batch();
+
+  targetWords.forEach(w => {
+    const docRef = db.collection("users").doc(currentUser.uid).collection("words").doc(w.id);
+    batch.delete(docRef);
+  });
+
+  batch.commit()
+    .then(() => {
+      // 從本地移除
+      allWords = allWords.filter(w => w.folder !== folderName);
+      renderFolderList();
+    })
+    .catch(err => {
+      alert("刪除資料夾失敗：" + err.message);
+    });
+};
