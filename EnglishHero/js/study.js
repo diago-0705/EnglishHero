@@ -17,61 +17,24 @@ const db = firebase.firestore();
 let currentUser = null;
 let wordsList = [];
 let currentIndex = 0;
+let isFlipped = false; // 紀錄目前是否翻面
 
-const folderSelect = document.getElementById("study-folder-select");
-const flashcard = document.getElementById("flashcard");
-const wordEnEl = document.getElementById("word-en");
-const wordChEl = document.getElementById("word-ch");
-const cardCountEl = document.getElementById("card-count");
-const btnPrev = document.getElementById("btn-prev");
-const btnNext = document.getElementById("btn-next");
-const btnFlip = document.getElementById("btn-flip");
+// 對應你 study.html 裡的真實容器 ID
+const containerEl = document.getElementById("flashcard-container");
 
-// 驗證登入並載入資料夾清單
+// 驗證登入並載入單字
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
-    loadStudyFolders(user.uid);
+    loadWordsToStudy(user.uid);
   } else {
     window.location.replace("login.html?v=2026");
   }
 });
 
-// 載入使用者的資料夾選項
-function loadStudyFolders(uid) {
+// 根據使用者 UID 從 Firestore 抓取單字
+function loadWordsToStudy(uid) {
   db.collection("users").doc(uid).collection("words").get()
-    .then((snapshot) => {
-      const foldersSet = new Set();
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.folder) foldersSet.add(data.folder);
-      });
-
-      folderSelect.innerHTML = `<option value="all">📁 全部單字</option>`;
-      foldersSet.forEach(folderName => {
-        const opt = document.createElement("option");
-        opt.value = folderName;
-        opt.textContent = folderName;
-        folderSelect.appendChild(opt);
-      });
-
-      // 預設載入全部單字開始背誦
-      loadWordsToStudy(uid, "all");
-    })
-    .catch((err) => {
-      console.error("載入資料夾失敗：", err);
-    });
-}
-
-// 根據選擇的資料夾抓取單字
-function loadWordsToStudy(uid, folderName) {
-  let query = db.collection("users").doc(uid).collection("words");
-  
-  if (folderName !== "all") {
-    query = query.where("folder", "==", folderName);
-  }
-
-  query.get()
     .then((snapshot) => {
       wordsList = [];
       snapshot.forEach(doc => {
@@ -80,89 +43,102 @@ function loadWordsToStudy(uid, folderName) {
           id: doc.id,
           en: data.en || "",
           pos: data.pos || "",
-          ch: data.ch || ""
+          ch: data.ch || "",
+          folder: data.folder || "預設分類"
         });
       });
 
       currentIndex = 0;
+      isFlipped = false;
       renderCard();
     })
     .catch((err) => {
       console.error("讀取單字失敗：", err);
+      if (containerEl) {
+        containerEl.innerHTML = `<p style="color:red;">載入單字失敗，請重新整理</p>`;
+      }
     });
 }
 
-// 切換資料夾事件
-if (folderSelect) {
-  folderSelect.addEventListener("change", (e) => {
-    if (currentUser) {
-      loadWordsToStudy(currentUser.uid, e.target.value);
-    }
-  });
-}
-
-// 渲染當前字卡（讓正面與背面都顯示詞性）
+// 渲染當前字卡（正面與背面隨時顯示藍色詞性標籤）
 function renderCard() {
+  if (!containerEl) return;
+
   if (wordsList.length === 0) {
-    wordEnEl.innerHTML = "這個分類目前沒有單字";
-    wordChEl.innerHTML = "請先去新增單字頁加入單字！";
-    cardCountEl.textContent = "0 / 0";
+    containerEl.innerHTML = `
+      <div class="word-card">
+        <div style="font-size: 20px; color: #666; font-weight: bold;">這個分類目前沒有單字</div>
+        <div style="font-size: 14px; color: #888; margin-top: 8px;">請先去新增單字頁加入單字！</div>
+      </div>
+    `;
     return;
   }
 
   const currentWord = wordsList[currentIndex];
   
-  // 讓正面與背面都動態疊加詞性標籤
-  const frontContainer = flashcard.querySelector(".card-front");
-  const backContainer = flashcard.querySelector(".card-back");
+  // 動態組合字卡 HTML，確保詞性 (pos) 不管翻面與否都固定在右上角
+  containerEl.innerHTML = `
+    <div id="word-card-box" class="word-card" style="position: relative; text-align: left; padding: 28px;">
+      
+      <!-- 詞性標籤：永遠顯示在右上角 -->
+      <span style="position: absolute; top: 16px; right: 20px; font-size: 14px; font-weight: bold; color: #0284c7; background: #e0f2fe; padding: 3px 10px; border-radius: 6px;">
+        ${currentWord.pos || '未分類'}
+      </span>
+      
+      <div class="folder-badge">📁 ${currentWord.folder}</div>
+      
+      <div style="margin-top: 12px; text-align: center; cursor: pointer;">
+        ${!isFlipped ? `
+          <!-- 正面：顯示英文 -->
+          <div class="en-word" style="font-size: 32px; font-weight: bold; color: #1d4ed8; margin-bottom: 8px;">${currentWord.en}</div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px;">👆 點擊卡片看中文</div>
+        ` : `
+          <!-- 背面：顯示中文 -->
+          <div class="ch-word" style="font-size: 26px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">${currentWord.ch}</div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px;">👆 點擊卡片看英文</div>
+        `}
+      </div>
 
-  // 更新正面內容與詞性
-  frontContainer.innerHTML = `
-    <span style="position: absolute; top: 14px; right: 18px; font-size: 15px; font-weight: bold; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px;">${currentWord.pos || ''}</span>
-    <div id="word-en" style="font-size: 32px; font-weight: bold; color: #1e293b;">${currentWord.en}</div>
+      <!-- 切換按鈕與計數器 -->
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f3f4f6; padding-top: 14px;">
+        <button id="btn-prev" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">⬅️ 上一張</button>
+        <span style="font-size: 14px; color: #6b7280; font-weight: bold;">${currentIndex + 1} / ${wordsList.length}</span>
+        <button id="btn-next" style="padding: 8px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">下一張 ➡️</button>
+      </div>
+    </div>
   `;
 
-  // 更新背面內容與詞性
-  backContainer.innerHTML = `
-    <span style="position: absolute; top: 14px; right: 18px; font-size: 15px; font-weight: bold; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px;">${currentWord.pos || ''}</span>
-    <div id="word-ch" style="font-size: 28px; font-weight: bold; color: #0f172a;">${currentWord.ch}</div>
-  `;
+  // 綁定點擊整張卡片翻面事件
+  const cardBox = document.getElementById("word-card-box");
+  if (cardBox) {
+    cardBox.addEventListener("click", (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      isFlipped = !isFlipped;
+      renderCard();
+    });
+  }
 
-  // 重設翻面狀態
-  flashcard.classList.remove("flipped");
-  
-  // 更新計數器
-  cardCountEl.textContent = `${currentIndex + 1} / ${wordsList.length}`;
-}
+  // 綁定上一張按鈕
+  const btnPrev = document.getElementById("btn-prev");
+  if (btnPrev) {
+    btnPrev.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (wordsList.length === 0) return;
+      currentIndex = (currentIndex - 1 + wordsList.length) % wordsList.length;
+      isFlipped = false;
+      renderCard();
+    });
+  }
 
-// 點擊字卡翻面
-if (flashcard) {
-  flashcard.addEventListener("click", () => {
-    flashcard.classList.toggle("flipped");
-  });
-}
-
-// 上一張
-if (btnPrev) {
-  btnPrev.addEventListener("click", () => {
-    if (wordsList.length === 0) return;
-    currentIndex = (currentIndex - 1 + wordsList.length) % wordsList.length;
-    renderCard();
-  });
-}
-
-// 下一張
-if (btnNext) {
-  btnNext.addEventListener("click", () => {
-    if (wordsList.length === 0) return;
-    currentIndex = (currentIndex + 1) % wordsList.length;
-    renderCard();
-  });
-}
-
-// 翻面按鈕
-if (btnFlip) {
-  btnFlip.addEventListener("click", () => {
-    flashcard.classList.toggle("flipped");
-  });
+  // 綁定下一張按鈕
+  const btnNext = document.getElementById("btn-next");
+  if (btnNext) {
+    btnNext.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (wordsList.length === 0) return;
+      currentIndex = (currentIndex + 1) % wordsList.length;
+      isFlipped = false;
+      renderCard();
+    });
+  }
 }
