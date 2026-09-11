@@ -16,24 +16,22 @@ const db = firebase.firestore();
 
 let currentUser = null;
 let allWords = []; 
-let currentViewingFolder = ""; // 紀錄目前正在看的資料夾
+let currentViewingFolder = ""; 
 
 const containerEl = document.getElementById("flashcard-container");
 const pageTitleEl = document.getElementById("page-title");
 const btnBackFolders = document.getElementById("btn-back-folders");
 const editModalContainer = document.getElementById("edit-modal-container");
 
-// 驗證登入
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
     fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2052");
+    window.location.replace("login.html?v=2060");
   }
 });
 
-// 抓取所有單字
 function fetchAllWords(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
@@ -56,7 +54,7 @@ function fetchAllWords(uid) {
     });
 }
 
-// 顯示資料夾條列清單
+// 渲染資料夾清單（支援左滑刪除、檢視、考單字）
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
@@ -79,20 +77,67 @@ function renderFolderList() {
   folders.forEach(folderName => {
     const count = folderMap[folderName].length;
     html += `
-      <div class="folder-item">
-        <div class="folder-info">
-          <h3>📁 ${folderName}</h3>
-          <p>共 ${count} 個單字</p>
-        </div>
-        <div class="btn-group">
-          <button class="btn-view" onclick="viewFolderWords('${folderName}')">🔍 檢視單字</button>
-          <button class="btn-del" onclick="deleteFolder('${folderName}')">🗑️ 刪除資料夾</button>
+      <div class="folder-wrapper" id="wrapper-${folderName}">
+        <div class="folder-actions-bg">刪除</div>
+        <div class="folder-item" id="folder-card-${folderName}" data-folder="${folderName}">
+          <div class="folder-info">
+            <h3>📁 ${folderName}</h3>
+            <p>共 ${count} 個單字 (可向左滑動刪除)</p>
+          </div>
+          <div class="btn-group">
+            <button class="btn-view" onclick="viewFolderWords('${folderName}')">🔍 檢視</button>
+            <button class="btn-quiz" onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
+          </div>
         </div>
       </div>
     `;
   });
 
   containerEl.innerHTML = html;
+  initSwipeToDelete();
+}
+
+// 實作資料夾往左滑動彈出是否刪除
+function initSwipeToDelete() {
+  const cards = document.querySelectorAll('.folder-item');
+  
+  cards.forEach(card => {
+    let startX = 0;
+    let currentTranslateX = 0;
+    const folderName = card.getAttribute('data-folder');
+
+    card.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+    }, {passive: true});
+
+    card.addEventListener('touchmove', (e) => {
+      const touchX = e.touches[0].clientX;
+      const diff = touchX - startX;
+      // 限制只能向左滑動 (diff < 0)
+      if (diff < 0 && diff > -120) {
+        card.style.transform = `translateX(${diff}px)`;
+      }
+    }, {passive: true});
+
+    card.addEventListener('touchend', (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const diff = endX - startX;
+      
+      // 如果向左滑動超過 70px，觸發刪除確認
+      if (diff < -70) {
+        card.style.transform = `translateX(-100px)`;
+        setTimeout(() => {
+          if (confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) {
+            deleteFolder(folderName);
+          } else {
+            card.style.transform = `translateX(0px)`;
+          }
+        }, 150);
+      } else {
+        card.style.transform = `translateX(0px)`;
+      }
+    });
+  });
 }
 
 // 檢視特定資料夾底下的所有單字
@@ -129,14 +174,18 @@ window.viewFolderWords = function(folderName) {
   containerEl.innerHTML = html;
 };
 
-// 返回資料夾清單按鈕事件
+// 進入指定資料夾的「考單字」測驗模式
+window.startFolderQuiz = function(folderName) {
+  window.location.href = `quiz.html?folder=${encodeURIComponent(folderName)}&v=2060`;
+};
+
 if (btnBackFolders) {
   btnBackFolders.addEventListener("click", () => {
     renderFolderList();
   });
 }
 
-// 開啟與「新增單字」完全一致版型的修改表單
+// 開啟精美修改表單
 window.openEditModal = function(wordId) {
   const target = allWords.find(w => w.id === wordId);
   if (!target) return;
@@ -179,12 +228,10 @@ window.openEditModal = function(wordId) {
   `;
 };
 
-// 關閉修改表單
 window.closeEditModal = function() {
   editModalContainer.innerHTML = "";
 };
 
-// 儲存修改後的單字到 Firestore
 window.saveEditedWord = function(wordId) {
   const newEn = document.getElementById("edit-en").value.trim();
   const newPos = document.getElementById("edit-pos").value;
@@ -201,7 +248,6 @@ window.saveEditedWord = function(wordId) {
     ch: newCh
   })
   .then(() => {
-    // 更新本地暫存資料
     const target = allWords.find(w => w.id === wordId);
     if (target) {
       target.en = newEn;
@@ -209,14 +255,13 @@ window.saveEditedWord = function(wordId) {
       target.ch = newCh;
     }
     closeEditModal();
-    viewFolderWords(currentViewingFolder); // 重新整理當前資料夾列表
+    viewFolderWords(currentViewingFolder);
   })
   .catch(err => {
     alert("儲存失敗：" + err.message);
   });
 };
 
-// 刪除單一單字
 window.deleteSingleWord = function(wordId) {
   if (!confirm("確定要刪除這個單字嗎？")) return;
 
@@ -230,10 +275,7 @@ window.deleteSingleWord = function(wordId) {
     });
 };
 
-// 刪除整個資料夾
 window.deleteFolder = function(folderName) {
-  if (!confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) return;
-
   const targetWords = allWords.filter(w => w.folder === folderName);
   const batch = db.batch();
 
