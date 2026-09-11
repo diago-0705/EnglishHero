@@ -1,60 +1,4 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyA4bbUoXHi29YAjCgYrnuYRhZJ8_JEtalc",
-  authDomain: "englishhero-d58c6.firebaseapp.com",
-  projectId: "englishhero-d58c6",
-  storageBucket: "englishhero-d58c6.firebasestorage.app",
-  messagingSenderId: "437927020009",
-  appId: "1:437927020009:web:30e18c99cfeec8ef4ef778",
-  measurementId: "G-TZTCS02SK6"
-};
-
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let currentUser = null;
-let allWords = []; 
-let currentViewingFolder = ""; 
-
-const containerEl = document.getElementById("flashcard-container");
-const pageTitleEl = document.getElementById("page-title");
-const btnBackFolders = document.getElementById("btn-back-folders");
-const editModalContainer = document.getElementById("edit-modal-container");
-
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    currentUser = user;
-    fetchAllWords(user.uid);
-  } else {
-    window.location.replace("login.html?v=2062");
-  }
-});
-
-function fetchAllWords(uid) {
-  db.collection("users").doc(uid).collection("words").get()
-    .then((snapshot) => {
-      allWords = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        allWords.push({
-          id: doc.id,
-          en: data.en || "",
-          pos: data.pos || "",
-          ch: data.ch || "",
-          folder: data.folder || "未分類"
-        });
-      });
-      renderFolderList();
-    })
-    .catch((err) => {
-      console.error("載入失敗：", err);
-      containerEl.innerHTML = `<p style="color:red; text-align:center;">載入單字失敗</p>`;
-    });
-}
-
-// 渲染資料夾清單（電腦版三個點選單、手機版左滑顯示操作）
+// 渲染資料夾清單
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
@@ -78,29 +22,21 @@ function renderFolderList() {
     const count = folderMap[folderName].length;
     html += `
       <div class="folder-wrapper" id="wrapper-${folderName}">
-        <!-- 手機版左滑顯示的按鈕區 -->
         <div class="folder-actions-hidden">
           <button class="btn-swipe-view" onclick="viewFolderWords('${folderName}')">🔍 檢視</button>
           <button class="btn-swipe-quiz" onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
           <button class="btn-swipe-del" onclick="confirmDeleteFolder('${folderName}')">🗑️ 刪除</button>
         </div>
         
-        <!-- 資料夾主卡片 -->
         <div class="folder-item" id="folder-card-${index}" data-folder="${folderName}">
           <div class="folder-info">
             <h3>📁 ${folderName}</h3>
             <p>共 ${count} 個單字</p>
           </div>
           
-          <!-- 電腦版三個點選單 -->
           <div class="desktop-actions">
             <div class="dots-container">
-              <button class="dots-btn" onclick="toggleDropdown(event, '${index}')">⋮</button>
-              <div class="dropdown-menu" id="dropdown-${index}">
-                <button onclick="viewFolderWords('${folderName}')">🔍 檢視單字</button>
-                <button onclick="startFolderQuiz('${folderName}')">📝 考單字</button>
-                <button class="text-danger" onclick="confirmDeleteFolder('${folderName}')">🗑️ 刪除資料夾</button>
-              </div>
+              <button class="dots-btn" id="dots-btn-${index}" onclick="toggleDropdown(event, '${folderName}', '${index}')">⋮</button>
             </div>
           </div>
         </div>
@@ -110,222 +46,52 @@ function renderFolderList() {
 
   containerEl.innerHTML = html;
   initSwipeToDelete();
-  initGlobalDropdownClose();
 }
 
-// 切換電腦版三個點下拉選單顯示狀態
-window.toggleDropdown = function(event, index) {
+// 點擊三個點時，動態在 body 產生浮動選單，完美避開所有容器遮擋
+window.toggleDropdown = function(event, folderName, index) {
   event.stopPropagation();
-  // 先關閉其他開啟中的選單
-  document.querySelectorAll('.dropdown-menu').forEach((menu, idx) => {
-    if (idx.toString() !== index.toString()) {
-      menu.classList.remove('show');
-    }
-  });
-  const menu = document.getElementById(`dropdown-${index}`);
-  if (menu) {
-    menu.classList.toggle('show');
-  }
-};
-
-// 點擊畫面其他地方自動關閉下拉選單
-function initGlobalDropdownClose() {
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.dropdown-menu').forEach(menu => {
-      menu.classList.remove('show');
-    });
-  });
-}
-
-// 手機版左滑顯示隱藏按鈕支援
-function initSwipeToDelete() {
-  const cards = document.querySelectorAll('.folder-item');
   
-  cards.forEach(card => {
-    let startX = 0;
-    const folderName = card.getAttribute('data-folder');
-
-    card.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-    }, {passive: true});
-
-    card.addEventListener('touchmove', (e) => {
-      const touchX = e.touches[0].clientX;
-      const diff = touchX - startX;
-      // 限制向左滑動距離最多 150px 展開按鈕
-      if (diff < 0 && diff > -170) {
-        card.style.transform = `translateX(${diff}px)`;
-      }
-    }, {passive: true});
-
-    card.addEventListener('touchend', (e) => {
-      const endX = e.changedTouches[0].clientX;
-      const diff = endX - startX;
-      
-      // 如果向左滑動超過 70px，定位在展開位置 (-150px)
-      if (diff < -70) {
-        card.style.transform = `translateX(-150px)`;
-      } else {
-        card.style.transform = `translateX(0px)`;
-      }
-    });
-  });
-}
-
-// 刪除資料夾確認
-window.confirmDeleteFolder = function(folderName) {
-  if (confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) {
-    deleteFolder(folderName);
-  }
-};
-
-window.viewFolderWords = function(folderName) {
-  currentViewingFolder = folderName;
-  pageTitleEl.textContent = `📁 資料夾：${folderName}`;
-  btnBackFolders.style.display = "block";
-
-  const targetWords = allWords.filter(w => w.folder === folderName);
-
-  if (targetWords.length === 0) {
-    containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾裡沒有單字。</p>`;
+  // 移除畫面中可能已經存在的舊選單
+  const existingMenu = document.getElementById("global-dropdown-menu");
+  if (existingMenu) {
+    existingMenu.remove();
     return;
   }
 
-  let html = `<div style="background: #f8fafc; padding: 10px; border-radius: 8px;">`;
-  targetWords.forEach(w => {
-    html += `
-      <div class="word-row">
-        <div>
-          <span style="font-size: 16px; font-weight: bold; color: #1d4ed8;">${w.en}</span>
-          <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${w.pos || '無詞性'}</span>
-          <div style="font-size: 14px; color: #4b5563; margin-top: 2px;">${w.ch}</div>
-        </div>
-        <div style="display: flex; gap: 6px;">
-          <button onclick="openEditModal('${w.id}')" style="background: #e0e7ff; color: #4f46e5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">修改</button>
-          <button onclick="deleteSingleWord('${w.id}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
-        </div>
-      </div>
-    `;
-  });
-  html += `</div>`;
+  const btn = document.getElementById(`dots-btn-${index}`);
+  const rect = btn.getBoundingClientRect();
 
-  containerEl.innerHTML = html;
-};
+  // 建立動態選單並掛載到 body 最外層
+  const menu = document.createElement("div");
+  menu.id = "global-dropdown-menu";
+  menu.style.position = "fixed";
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.right = `${window.innerWidth - rect.right}px`;
+  menu.style.background = "#fff";
+  menu.style.border = "1px solid #cbd5e1";
+  menu.style.borderRadius = "8px";
+  menu.style.boxShadow = "0 10px 25px rgba(0,0,0,0.2)";
+  menu.style.zIndex = "999999";
+  menu.style.minWidth = "150px";
+  menu.style.padding = "4px 0";
 
-window.startFolderQuiz = function(folderName) {
-  window.location.href = `quiz.html?folder=${encodeURIComponent(folderName)}&v=2062`;
-};
-
-if (btnBackFolders) {
-  btnBackFolders.addEventListener("click", () => {
-    renderFolderList();
-  });
-}
-
-window.openEditModal = function(wordId) {
-  const target = allWords.find(w => w.id === wordId);
-  if (!target) return;
-
-  editModalContainer.innerHTML = `
-    <div class="edit-modal-backdrop">
-      <div class="edit-card">
-        <h3 style="margin-top: 0; color: #1e293b; margin-bottom: 16px;">✏️ 修改單字資料</h3>
-        
-        <div class="form-group">
-          <label>英文單字 (English)</label>
-          <input type="text" id="edit-en" value="${target.en}">
-        </div>
-
-        <div class="form-group">
-          <label>詞性 (Part of Speech)</label>
-          <select id="edit-pos">
-            <option value="n." ${target.pos === 'n.' ? 'selected' : ''}>n. (名詞)</option>
-            <option value="v." ${target.pos === 'v.' ? 'selected' : ''}>v. (動詞)</option>
-            <option value="adj." ${target.pos === 'adj.' ? 'selected' : ''}>adj. (形容詞)</option>
-            <option value="adv." ${target.pos === 'adv.' ? 'selected' : ''}>adv. (副詞)</option>
-            <option value="prep." ${target.pos === 'prep.' ? 'selected' : ''}>prep. (介系詞)</option>
-            <option value="conj." ${target.pos === 'conj.' ? 'selected' : ''}>conj. (連接詞)</option>
-            <option value="phr." ${target.pos === 'phr.' ? 'selected' : ''}>phr. (片語)</option>
-            <option value="other" ${!['n.','v.','adj.','adv.','prep.','conj.','phr.'].includes(target.pos) ? 'selected' : ''}>其他</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>中文意思 (Chinese)</label>
-          <input type="text" id="edit-ch" value="${target.ch}">
-        </div>
-
-        <div class="modal-btns">
-          <button class="btn-cancel" onclick="closeEditModal()">取消</button>
-          <button class="btn-save" onclick="saveEditedWord('${target.id}')">儲存修改</button>
-        </div>
-      </div>
-    </div>
+  menu.innerHTML = `
+    <button onclick="viewFolderWords('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #334155;">🔍 檢視單字</button>
+    <button onclick="startFolderQuiz('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #334155;">📝 考單字</button>
+    <button onclick="confirmDeleteFolder('${folderName}'); closeGlobalDropdown();" style="display: block; width: 100%; text-align: left; padding: 10px 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: #ef4444;">🗑️ 刪除資料夾</button>
   `;
+
+  document.body.appendChild(menu);
 };
 
-window.closeEditModal = function() {
-  editModalContainer.innerHTML = "";
+// 關閉全域選單
+window.closeGlobalDropdown = function() {
+  const menu = document.getElementById("global-dropdown-menu");
+  if (menu) menu.remove();
 };
 
-window.saveEditedWord = function(wordId) {
-  const newEn = document.getElementById("edit-en").value.trim();
-  const newPos = document.getElementById("edit-pos").value;
-  const newCh = document.getElementById("edit-ch").value.trim();
-
-  if (!newEn || !newCh) {
-    alert("英文與中文不能為空！");
-    return;
-  }
-
-  db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).update({
-    en: newEn,
-    pos: newPos,
-    ch: newCh
-  })
-  .then(() => {
-    const target = allWords.find(w => w.id === wordId);
-    if (target) {
-      target.en = newEn;
-      target.pos = newPos;
-      target.ch = newCh;
-    }
-    closeEditModal();
-    viewFolderWords(currentViewingFolder);
-  })
-  .catch(err => {
-    alert("儲存失敗：" + err.message);
-  });
-};
-
-window.deleteSingleWord = function(wordId) {
-  if (!confirm("確定要刪除這個單字嗎？")) return;
-
-  db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).delete()
-    .then(() => {
-      allWords = allWords.filter(w => w.id !== wordId);
-      viewFolderWords(currentViewingFolder);
-    })
-    .catch(err => {
-      alert("刪除失敗：" + err.message);
-    });
-};
-
-window.deleteFolder = function(folderName) {
-  const targetWords = allWords.filter(w => w.folder === folderName);
-  const batch = db.batch();
-
-  targetWords.forEach(w => {
-    const docRef = db.collection("users").doc(currentUser.uid).collection("words").doc(w.id);
-    batch.delete(docRef);
-  });
-
-  batch.commit()
-    .then(() => {
-      allWords = allWords.filter(w => w.folder !== folderName);
-      renderFolderList();
-    })
-    .catch(err => {
-      alert("刪除資料夾失敗：" + err.message);
-    });
-};
+// 點擊其他地方自動關閉
+document.addEventListener('click', () => {
+  closeGlobalDropdown();
+});
