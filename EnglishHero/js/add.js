@@ -137,6 +137,7 @@ if (addForm) {
     }
 
     const en = document.getElementById("word-en").value.trim();
+    const pos = document.getElementById("word-pos").value; // 取得詞性
     const ch = document.getElementById("word-ch").value.trim();
 
     msgEl.textContent = "儲存中...";
@@ -145,13 +146,17 @@ if (addForm) {
     db.collection("users").doc(currentUser.uid).collection("words").add({
       folder: folder,
       en: en,
+      pos: pos,  // 儲存詞性欄位
       ch: ch,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     })
     .then(() => {
       msgEl.textContent = "✅ 新增成功！";
       msgEl.className = "msg success";
+      
+      // 清空輸入並重設選單
       document.getElementById("word-en").value = "";
+      document.getElementById("word-pos").value = "";
       document.getElementById("word-ch").value = "";
       document.getElementById("word-en").focus();
       
