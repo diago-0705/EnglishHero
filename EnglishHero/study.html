@@ -1,42 +1,129 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>English Hero - 背單字</title>
-  <link rel="stylesheet" href="css/style.css?v=2026">
-  <style>
-    .study-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
-    .word-card { border: 2px solid #e5e7eb; background: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 16px; cursor: pointer; transition: 0.2s; }
-    .word-card:hover { border-color: #3b82f6; background: #fff; }
-    .en-word { font-size: 26px; font-weight: bold; color: #1d4ed8; margin-bottom: 8px; }
-    .ch-word { font-size: 18px; color: #4b5563; }
-    .folder-badge { display: inline-block; font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; }
-  </style>
-</head>
-<body class="dashboard-body">
+const firebaseConfig = {
+  apiKey: "AIzaSyA4bbUoXHi29YAjCgYrnuYRhZJ8_JEtalc",
+  authDomain: "englishhero-d58c6.firebaseapp.com",
+  projectId: "englishhero-d58c6",
+  storageBucket: "englishhero-d58c6.firebasestorage.app",
+  messagingSenderId: "437927020009",
+  appId: "1:437927020009:web:30e18c99cfeec8ef4ef778",
+  measurementId: "G-TZTCS02SK6"
+};
 
-<header class="main-header">
-  <div class="logo">
-    <a href="index.html?v=2026" style="text-decoration: none; color: inherit;">📚 English Hero - 背單字</a>
-  </div>
-  <div class="user-panel">
-    <a href="index.html?v=2026" class="btn-back">回首頁</a>
-  </div>
-</header>
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-<div class="study-container">
-  <h2 style="color: #333; margin-bottom: 5px;">單字庫瀏覽</h2>
-  <p style="color: #888; margin-bottom: 25px;">點擊字卡可切換顯示/隱藏中文</p>
+let currentUser = null;
+let wordsList = [];
+let currentIndex = 0;
+let isFlipped = false; // 紀錄目前是否翻面
+
+const containerEl = document.getElementById("flashcard-container");
+
+// 驗證登入並載入單字
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    currentUser = user;
+    loadWordsToStudy(user.uid);
+  } else {
+    window.location.replace("login.html?v=2026");
+  }
+});
+
+// 從 Firestore 載入使用者的單字
+function loadWordsToStudy(uid) {
+  db.collection("users").doc(uid).collection("words").get()
+    .then((snapshot) => {
+      wordsList = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        wordsList.push({
+          id: doc.id,
+          en: data.en || "",
+          pos: data.pos || "",
+          ch: data.ch || "",
+          folder: data.folder || "預設分類"
+        });
+      });
+
+      currentIndex = 0;
+      isFlipped = false;
+      renderCard();
+    })
+    .catch((err) => {
+      console.error("讀取單字失敗：", err);
+      containerEl.innerHTML = `<p style="color:red;">載入單字失敗，請重新整理</p>`;
+    });
+}
+
+// 渲染字卡（支援隨時顯示詞性、點擊翻面、切換）
+function renderCard() {
+  if (wordsList.length === 0) {
+    containerEl.innerHTML = `
+      <div class="word-card">
+        <div class="en-word" style="font-size: 20px; color: #666;">目前沒有單字</div>
+        <div class="ch-word" style="font-size: 14px; margin-top: 8px;">請先去新增單字頁加入單字！</div>
+      </div>
+    `;
+    return;
+  }
+
+  const currentWord = wordsList[currentIndex];
   
-  <div id="flashcard-container">
-    <p style="color:#666;">載入中...</p>
-  </div>
-</div>
+  // 依照是否翻面來決定顯示英文還是中文，但詞性（pos）永遠在右上角顯示！
+  containerEl.innerHTML = `
+    <div id="word-card-box" class="word-card" style="position: relative; text-align: left; padding: 28px;">
+      <!-- 詞性標籤：不管有沒有翻開，永遠顯示在右上角 -->
+      <span style="position: absolute; top: 16px; right: 20px; font-size: 14px; font-weight: bold; color: #0284c7; background: #e0f2fe; padding: 3px 10px; border-radius: 6px;">
+        ${currentWord.pos || '未分類'}
+      </span>
+      
+      <div class="folder-badge">📁 ${currentWord.folder}</div>
+      
+      <div style="margin-top: 12px; text-align: center;">
+        ${!isFlipped ? `
+          <!-- 正面：顯示英文 -->
+          <div class="en-word" style="font-size: 32px; font-weight: bold; color: #1d4ed8; margin-bottom: 8px;">${currentWord.en}</div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px;">👆 點擊卡片看中文</div>
+        ` : `
+          <!-- 背面：顯示中文 -->
+          <div class="ch-word" style="font-size: 26px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">${currentWord.ch}</div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 12px;">👆 點擊卡片看英文</div>
+        `}
+      </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="js/study.js?v=2026"></script>
-</body>
-</html>
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f3f4f6; pt: 12px;">
+        <button id="btn-prev" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">⬅️ 上一張</button>
+        <span style="font-size: 14px; color: #6b7280; font-weight: bold;">${currentIndex + 1} / ${wordsList.length}</span>
+        <button id="btn-next" style="padding: 8px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">下一張 ➡️</button>
+      </div>
+    </div>
+  `;
+
+  // 綁定點擊整張卡片翻面事件
+  document.getElementById("word-card-box").addEventListener("click", (e) => {
+    // 如果點到的是按鈕就不觸發翻面
+    if (e.target.tagName === 'BUTTON') return;
+    isFlipped = !isFlipped;
+    renderCard();
+  });
+
+  // 綁定上一張按鈕事件
+  document.getElementById("btn-prev").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (wordsList.length === 0) return;
+    currentIndex = (currentIndex - 1 + wordsList.length) % wordsList.length;
+    isFlipped = false;
+    renderCard();
+  });
+
+  // 綁定下一張按鈕事件
+  document.getElementById("btn-next").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (wordsList.length === 0) return;
+    currentIndex = (currentIndex + 1) % wordsList.length;
+    isFlipped = false;
+    renderCard();
+  });
+}
