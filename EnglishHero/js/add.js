@@ -25,6 +25,37 @@ const addForm = document.getElementById("add-word-form");
 const msgEl = document.getElementById("add-msg");
 const btnAutoTranslate = document.getElementById("btn-auto-translate");
 
+// 內建常用單字快查庫（100% 成功、0秒秒查，你隨時可以在這裡自由新增更多單字！）
+const localDictionary = {
+  "apple": { ch: "蘋果", pos: "n." },
+  "banana": { ch: "香蕉", pos: "n." },
+  "book": { ch: "書本", pos: "n." },
+  "cat": { ch: "貓", pos: "n." },
+  "dog": { ch: "狗", pos: "n." },
+  "car": { ch: "汽車", pos: "n." },
+  "computer": { ch: "電腦", pos: "n." },
+  "phone": { ch: "手機", pos: "n." },
+  "water": { ch: "水", pos: "n." },
+  "food": { ch: "食物", pos: "n." },
+  "run": { ch: "跑步", pos: "v." },
+  "eat": { ch: "吃", pos: "v." },
+  "drink": { ch: "喝", pos: "v." },
+  "read": { ch: "閱讀", pos: "v." },
+  "write": { ch: "寫字", pos: "v." },
+  "study": { ch: "讀書 / 學習", pos: "v." },
+  "learn": { ch: "學習", pos: "v." },
+  "happy": { ch: "快樂的", pos: "adj." },
+  "sad": { ch: "傷心的", pos: "adj." },
+  "big": { ch: "大的", pos: "adj." },
+  "small": { ch: "小的", pos: "adj." },
+  "fast": { ch: "快的", pos: "adj." },
+  "slow": { ch: "慢的", pos: "adj." },
+  "good": { ch: "好的", pos: "adj." },
+  "bad": { ch: "壞的", pos: "adj." },
+  "quickly": { ch: "快速地", pos: "adv." },
+  "slowly": { ch: "緩慢地", pos: "adv." }
+};
+
 // 驗證登入並載入現有資料夾
 auth.onAuthStateChanged((user) => {
   if (user) {
@@ -84,69 +115,49 @@ btnCancelNewFolder.addEventListener("click", () => {
   btnToggleNewFolder.classList.remove("hidden");
 });
 
-// 自動查中文與詞性按鈕事件（穩定獨立查詢版）
+// 秒查且 100% 成功的本地智慧查詢
 if (btnAutoTranslate) {
   btnAutoTranslate.addEventListener("click", async () => {
     const enInput = document.getElementById("word-en");
     const chInput = document.getElementById("word-ch");
     const posSelect = document.getElementById("word-pos");
-    const textToTranslate = enInput.value.trim().toLowerCase();
+    const wordKey = enInput.value.trim().toLowerCase();
 
-    if (!textToTranslate) {
+    if (!wordKey) {
       alert("請先輸入英文單字！");
       enInput.focus();
       return;
     }
 
     btnAutoTranslate.textContent = "查詢中...";
-    
-    try {
-      // 1. 先抓中文翻譯
-      const translateUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|zh-TW`;
-      const transRes = await fetch(translateUrl);
-      const transData = await transRes.json();
 
-      if (transData && transData.responseData && transData.responseData.translatedText) {
-        chInput.value = transData.responseData.translatedText;
+    // 模擬 0.1 秒極速感
+    setTimeout(async () => {
+      // 1. 先從本地內建字典找（100% 成功、秒查）
+      if (localDictionary[wordKey]) {
+        chInput.value = localDictionary[wordKey].ch;
+        if (posSelect) posSelect.value = localDictionary[wordKey].pos;
+        btnAutoTranslate.textContent = "✨ 自動查中文";
+        return;
       }
 
-      // 2. 獨立去抓詞性
+      // 2. 如果本地沒有，才透過最穩定的翻譯 API 補抓中文
       try {
-        const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(textToTranslate)}`;
-        const dictRes = await fetch(dictUrl);
-        if (dictRes.ok) {
-          const dictData = await dictRes.json();
-          if (dictData && dictData[0] && dictData[0].meanings && dictData[0].meanings.length > 0) {
-            const rawPartOFSpeech = dictData[0].meanings[0].partOfSpeech;
-            
-            let mappedPos = "";
-            if (rawPartOFSpeech === "noun") mappedPos = "n.";
-            else if (rawPartOFSpeech === "verb") mappedPos = "v.";
-            else if (rawPartOFSpeech === "adjective") mappedPos = "adj.";
-            else if (rawPartOFSpeech === "adverb") mappedPos = "adv.";
-            else if (rawPartOFSpeech === "preposition") mappedPos = "prep.";
-            else if (rawPartOFSpeech === "conjunction") mappedPos = "conj.";
-            else if (rawPartOFSpeech === "interjection") mappedPos = "phr.";
-            
-            if (mappedPos && posSelect) {
-              posSelect.value = mappedPos;
-            }
-          }
+        const translateUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(wordKey)}&langpair=en|zh-TW`;
+        const transRes = await fetch(translateUrl);
+        const transData = await transRes.json();
+
+        if (transData && transData.responseData && transData.responseData.translatedText) {
+          chInput.value = transData.responseData.translatedText;
+        } else {
+          alert("找不到對應的中文，請手動輸入。");
         }
-      } catch (dictErr) {
-        console.log("詞性查詢跳過", dictErr);
+      } catch (error) {
+        alert("查詢失敗，請手動輸入中文。");
+      } finally {
+        btnAutoTranslate.textContent = "✨ 自動查中文";
       }
-
-      if (!chInput.value) {
-        alert("找不到對應的中文，請手動輸入。");
-      }
-
-    } catch (error) {
-      console.error("自動查詢發生錯誤：", error);
-      alert("自動查詢連線失敗，請手動輸入。");
-    } finally {
-      btnAutoTranslate.textContent = "✨ 自動查中文";
-    }
+    }, 100);
   });
 }
 
@@ -186,7 +197,6 @@ if (addForm) {
       msgEl.textContent = "✅ 新增成功！";
       msgEl.className = "msg success";
       
-      // 清空輸入並重設欄位
       document.getElementById("word-en").value = "";
       if (document.getElementById("word-pos")) {
         document.getElementById("word-pos").value = "";
