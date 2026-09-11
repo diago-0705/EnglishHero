@@ -26,7 +26,7 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2050");
+    window.location.replace("login.html?v=2051");
   }
 });
 
@@ -58,7 +58,6 @@ function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
 
-  // 統計每個資料夾的單字數量
   const folderMap = {};
   allWords.forEach(w => {
     if (!folderMap[w.folder]) folderMap[w.folder] = [];
@@ -107,13 +106,16 @@ window.viewFolderWords = function(folderName) {
   let html = `<div style="background: #f8fafc; padding: 10px; border-radius: 8px;">`;
   targetWords.forEach(w => {
     html += `
-      <div class="word-row">
+      <div class="word-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; background: #fff; margin-top: 4px; border-radius: 6px;">
         <div>
           <span style="font-size: 16px; font-weight: bold; color: #1d4ed8;">${w.en}</span>
           <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${w.pos || '無詞性'}</span>
           <div style="font-size: 14px; color: #4b5563; margin-top: 2px;">${w.ch}</div>
         </div>
-        <button onclick="deleteSingleWord('${w.id}', '${folderName}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
+        <div style="display: flex; gap: 6px;">
+          <button onclick="editWord('${w.id}', '${folderName}')" style="background: #e0e7ff; color: #4f46e5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">修改</button>
+          <button onclick="deleteSingleWord('${w.id}', '${folderName}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
+        </div>
       </div>
     `;
   });
@@ -129,13 +131,50 @@ if (btnBackFolders) {
   });
 }
 
+// 修改單字功能（可修改英文、詞性、中文）
+window.editWord = function(wordId, currentFolderName) {
+  const target = allWords.find(w => w.id === wordId);
+  if (!target) return;
+
+  const newEn = prompt("請修改英文單字：", target.en);
+  if (newEn === null) return; // 按取消
+
+  const newPos = prompt("請修改詞性（例如 n., v., adj.）：", target.pos);
+  if (newPos === null) return;
+
+  const newCh = prompt("請修改中文意思：", target.ch);
+  if (newCh === null) return;
+
+  if (!newEn.trim() || !newCh.trim()) {
+    alert("英文與中文不能為空！");
+    return;
+  }
+
+  // 更新 Firestore
+  db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).update({
+    en: newEn.trim(),
+    pos: newPos.trim(),
+    ch: newCh.trim()
+  })
+  .then(() => {
+    // 同步更新本地端資料
+    target.en = newEn.trim();
+    target.pos = newPos.trim();
+    target.ch = newCh.trim();
+    // 重新整理該資料夾檢視畫面
+    viewFolderWords(currentFolderName);
+  })
+  .catch(err => {
+    alert("修改失敗：" + err.message);
+  });
+};
+
 // 刪除單一單字
 window.deleteSingleWord = function(wordId, currentFolderName) {
   if (!confirm("確定要刪除這個單字嗎？")) return;
 
   db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).delete()
     .then(() => {
-      // 從本地陣列移除並重新整理畫面
       allWords = allWords.filter(w => w.id !== wordId);
       viewFolderWords(currentFolderName);
     })
@@ -158,7 +197,6 @@ window.deleteFolder = function(folderName) {
 
   batch.commit()
     .then(() => {
-      // 從本地移除
       allWords = allWords.filter(w => w.folder !== folderName);
       renderFolderList();
     })
