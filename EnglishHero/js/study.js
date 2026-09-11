@@ -15,10 +15,13 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let currentUser = null;
-let allWords = []; // 儲存所有單字
+let allWords = []; 
+let currentViewingFolder = ""; // 紀錄目前正在看的資料夾
+
 const containerEl = document.getElementById("flashcard-container");
 const pageTitleEl = document.getElementById("page-title");
 const btnBackFolders = document.getElementById("btn-back-folders");
+const editModalContainer = document.getElementById("edit-modal-container");
 
 // 驗證登入
 auth.onAuthStateChanged((user) => {
@@ -26,11 +29,11 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     fetchAllWords(user.uid);
   } else {
-    window.location.replace("login.html?v=2051");
+    window.location.replace("login.html?v=2052");
   }
 });
 
-// 抓取該使用者所有的單字
+// 抓取所有單字
 function fetchAllWords(uid) {
   db.collection("users").doc(uid).collection("words").get()
     .then((snapshot) => {
@@ -57,6 +60,7 @@ function fetchAllWords(uid) {
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
+  currentViewingFolder = "";
 
   const folderMap = {};
   allWords.forEach(w => {
@@ -91,8 +95,9 @@ function renderFolderList() {
   containerEl.innerHTML = html;
 }
 
-// 檢視特定資料夾底下的所有單字（條列式）
+// 檢視特定資料夾底下的所有單字
 window.viewFolderWords = function(folderName) {
+  currentViewingFolder = folderName;
   pageTitleEl.textContent = `📁 資料夾：${folderName}`;
   btnBackFolders.style.display = "block";
 
@@ -106,15 +111,15 @@ window.viewFolderWords = function(folderName) {
   let html = `<div style="background: #f8fafc; padding: 10px; border-radius: 8px;">`;
   targetWords.forEach(w => {
     html += `
-      <div class="word-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; background: #fff; margin-top: 4px; border-radius: 6px;">
+      <div class="word-row">
         <div>
           <span style="font-size: 16px; font-weight: bold; color: #1d4ed8;">${w.en}</span>
           <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${w.pos || '無詞性'}</span>
           <div style="font-size: 14px; color: #4b5563; margin-top: 2px;">${w.ch}</div>
         </div>
         <div style="display: flex; gap: 6px;">
-          <button onclick="editWord('${w.id}', '${folderName}')" style="background: #e0e7ff; color: #4f46e5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">修改</button>
-          <button onclick="deleteSingleWord('${w.id}', '${folderName}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
+          <button onclick="openEditModal('${w.id}')" style="background: #e0e7ff; color: #4f46e5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">修改</button>
+          <button onclick="deleteSingleWord('${w.id}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">刪除</button>
         </div>
       </div>
     `;
@@ -131,61 +136,103 @@ if (btnBackFolders) {
   });
 }
 
-// 修改單字功能（可修改英文、詞性、中文）
-window.editWord = function(wordId, currentFolderName) {
+// 開啟與「新增單字」完全一致版型的修改表單
+window.openEditModal = function(wordId) {
   const target = allWords.find(w => w.id === wordId);
   if (!target) return;
 
-  const newEn = prompt("請修改英文單字：", target.en);
-  if (newEn === null) return; // 按取消
+  editModalContainer.innerHTML = `
+    <div class="edit-modal-backdrop">
+      <div class="edit-card">
+        <h3 style="margin-top: 0; color: #1e293b; margin-bottom: 16px;">✏️ 修改單字資料</h3>
+        
+        <div class="form-group">
+          <label>英文單字 (English)</label>
+          <input type="text" id="edit-en" value="${target.en}">
+        </div>
 
-  const newPos = prompt("請修改詞性（例如 n., v., adj.）：", target.pos);
-  if (newPos === null) return;
+        <div class="form-group">
+          <label>詞性 (Part of Speech)</label>
+          <select id="edit-pos">
+            <option value="n." ${target.pos === 'n.' ? 'selected' : ''}>n. (名詞)</option>
+            <option value="v." ${target.pos === 'v.' ? 'selected' : ''}>v. (動詞)</option>
+            <option value="adj." ${target.pos === 'adj.' ? 'selected' : ''}>adj. (形容詞)</option>
+            <option value="adv." ${target.pos === 'adv.' ? 'selected' : ''}>adv. (副詞)</option>
+            <option value="prep." ${target.pos === 'prep.' ? 'selected' : ''}>prep. (介系詞)</option>
+            <option value="conj." ${target.pos === 'conj.' ? 'selected' : ''}>conj. (連接詞)</option>
+            <option value="phr." ${target.pos === 'phr.' ? 'selected' : ''}>phr. (片語)</option>
+            <option value="other" ${!['n.','v.','adj.','adv.','prep.','conj.','phr.'].includes(target.pos) ? 'selected' : ''}>其他</option>
+          </select>
+        </div>
 
-  const newCh = prompt("請修改中文意思：", target.ch);
-  if (newCh === null) return;
+        <div class="form-group">
+          <label>中文意思 (Chinese)</label>
+          <input type="text" id="edit-ch" value="${target.ch}">
+        </div>
 
-  if (!newEn.trim() || !newCh.trim()) {
+        <div class="modal-btns">
+          <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+          <button class="btn-save" onclick="saveEditedWord('${target.id}')">儲存修改</button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 關閉修改表單
+window.closeEditModal = function() {
+  editModalContainer.innerHTML = "";
+};
+
+// 儲存修改後的單字到 Firestore
+window.saveEditedWord = function(wordId) {
+  const newEn = document.getElementById("edit-en").value.trim();
+  const newPos = document.getElementById("edit-pos").value;
+  const newCh = document.getElementById("edit-ch").value.trim();
+
+  if (!newEn || !newCh) {
     alert("英文與中文不能為空！");
     return;
   }
 
-  // 更新 Firestore
   db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).update({
-    en: newEn.trim(),
-    pos: newPos.trim(),
-    ch: newCh.trim()
+    en: newEn,
+    pos: newPos,
+    ch: newCh
   })
   .then(() => {
-    // 同步更新本地端資料
-    target.en = newEn.trim();
-    target.pos = newPos.trim();
-    target.ch = newCh.trim();
-    // 重新整理該資料夾檢視畫面
-    viewFolderWords(currentFolderName);
+    // 更新本地暫存資料
+    const target = allWords.find(w => w.id === wordId);
+    if (target) {
+      target.en = newEn;
+      target.pos = newPos;
+      target.ch = newCh;
+    }
+    closeEditModal();
+    viewFolderWords(currentViewingFolder); // 重新整理當前資料夾列表
   })
   .catch(err => {
-    alert("修改失敗：" + err.message);
+    alert("儲存失敗：" + err.message);
   });
 };
 
 // 刪除單一單字
-window.deleteSingleWord = function(wordId, currentFolderName) {
+window.deleteSingleWord = function(wordId) {
   if (!confirm("確定要刪除這個單字嗎？")) return;
 
   db.collection("users").doc(currentUser.uid).collection("words").doc(wordId).delete()
     .then(() => {
       allWords = allWords.filter(w => w.id !== wordId);
-      viewFolderWords(currentFolderName);
+      viewFolderWords(currentViewingFolder);
     })
     .catch(err => {
       alert("刪除失敗：" + err.message);
     });
 };
 
-// 刪除整個資料夾底下的所有單字
+// 刪除整個資料夾
 window.deleteFolder = function(folderName) {
-  if (!confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？此動作無法復原！`)) return;
+  if (!confirm(`確定要刪除資料夾「${folderName}」以及裡面的所有單字嗎？`)) return;
 
   const targetWords = allWords.filter(w => w.folder === folderName);
   const batch = db.batch();
