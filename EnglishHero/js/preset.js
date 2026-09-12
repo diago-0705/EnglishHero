@@ -25,18 +25,18 @@ auth.onAuthStateChanged((user) => {
 });
 
 // 精選題庫路徑設定（包含新增的 LiveABC 9月份）
-const PRESET_CONFIGS = {
+cconst PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
-    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/junior_2000.json"
+    fileUrl: "./JSON/junior_2000.json"
   },
   cap_exam: {
     folderName: "🔥 國中會考高頻單",
-    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/cap.json"
+    fileUrl: "./JSON/cap.json"
   },
   liveabc_sep: {
     folderName: "📚 LiveABC 9月份",
-    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/liveabc_sep.json"
+    fileUrl: "./JSON/liveabc_sep.json"
   }
 };
 
