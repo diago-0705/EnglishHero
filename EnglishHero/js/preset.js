@@ -20,7 +20,7 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2100");
+    window.location.replace("login.html?v=2101");
   }
 });
 
