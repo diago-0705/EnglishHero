@@ -20,12 +20,11 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2089");
+    window.location.replace("login.html?v=2100");
   }
 });
 
-// 精選題庫路徑設定（包含新增的 LiveABC 9月份）
-cconst PRESET_CONFIGS = {
+const PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
     fileUrl: "./JSON/junior_2000.json"
