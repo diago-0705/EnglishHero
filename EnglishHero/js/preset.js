@@ -20,18 +20,19 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2085");
+    window.location.replace("login.html?v=2086");
   }
 });
 
+// 直接使用你 GitHub Pages 的完整絕對網址
 const PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
-    fileUrl: "./JSON/junior_2000.json"
+    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/junior_2000.json"
   },
   cap_exam: {
     folderName: "🔥 國中會考高頻單",
-    fileUrl: "./JSON/cap.json"
+    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/cap.json"
   }
 };
 
@@ -40,25 +41,14 @@ window.importPreset = async function(presetKey) {
   if (!config) return;
 
   try {
-    // 秀出實際嘗試抓取的完整網址讓你知道
-    const targetUrl = new URL(config.fileUrl, window.location.href).href;
-    console.log("正在嘗試抓取：", targetUrl);
-
+    console.log("正在請求絕對網址：", config.fileUrl);
     const response = await fetch(config.fileUrl);
     
-    // 如果伺服器回傳不是 200，把狀態碼跟網址跳出來看
     if (!response.ok) {
-      throw new Error(`HTTP 錯誤碼: ${response.status} (${response.statusText})，網址: ${targetUrl}`);
+      throw new Error(`伺服器回應失敗，狀態碼：${response.status}`);
     }
 
-    const text = await response.text();
-    
-    // 檢查抓到的內容是不是被 GitHub 導向到 404 HTML 頁面
-    if (text.trim().startsWith("<!DOCTYPE html>") || text.includes("<title>GitHub</title>")) {
-      throw new Error("抓到了 HTML 頁面（代表檔案不存在或路徑錯誤被導向 404）");
-    }
-
-    const words = JSON.parse(text);
+    const words = await response.json();
 
     if (!confirm(`確定要將「${config.folderName}」共 ${words.length} 個單字加入您的資料庫嗎？`)) {
       return;
@@ -81,6 +71,6 @@ window.importPreset = async function(presetKey) {
     alert(`成功加入「${config.folderName}」！`);
   } catch (err) {
     console.error(err);
-    alert("詳細錯誤訊息：" + err.message);
+    alert("絕對路徑載入失敗：" + err.message);
   }
 };
