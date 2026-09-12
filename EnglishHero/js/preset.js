@@ -20,19 +20,19 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2082");
+    window.location.replace("login.html?v=2083");
   }
 });
 
-// 精選題庫路徑設定（完全對應大寫的 JSON 資料夾與 cap.json）
+// 對應你實際瀏覽器能夠讀取到的完整雙層路徑
 const PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
-    fileUrl: "JSON/junior_2000.json"
+    fileUrl: "EnglishHero/JSON/junior_2000.json"
   },
   cap_exam: {
     folderName: "🔥 國中會考高頻單",
-    fileUrl: "JSON/cap.json" // 指向正確的大寫資料夾與檔名
+    fileUrl: "EnglishHero/JSON/cap.json" // 對應實際網址中的雙層結構
   }
 };
 
@@ -42,7 +42,7 @@ window.importPreset = async function(presetKey) {
 
   try {
     const response = await fetch(config.fileUrl);
-    if (!response.ok) throw new Error("無法載入題庫檔案，請檢查 GitHub 上的檔案路徑是否正確");
+    if (!response.ok) throw new Error("無法載入題庫檔案，請檢查路徑");
     const words = await response.json();
 
     if (!confirm(`確定要將「${config.folderName}」共 ${words.length} 個單字加入您的資料庫嗎？`)) {
