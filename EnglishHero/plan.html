@@ -155,11 +155,16 @@
 
     <div class="form-group">
       <label>2. 預計在幾天內背完：</label>
-      <input type="number" id="target-days" min="1" value="7" class="form-control" placeholder="例如：7">
+      <input type="number" id="target-days" min="1" value="2" class="form-control" placeholder="例如：2">
+    </div>
+
+    <div class="form-group">
+      <label>3. 選擇第幾天的進度 (Day)：</label>
+      <input type="number" id="current-day" min="1" value="1" class="form-control" placeholder="例如：1 代表第一天">
     </div>
 
     <button onclick="generatePlan()" class="btn-primary">
-      🚀 預覽今日背誦計畫
+      🚀 預覽指定天數的背誦計畫
     </button>
 
     <!-- 計畫結果展示區 -->
@@ -167,16 +172,15 @@
       <div id="plan-title" class="plan-title-box"></div>
       
       <div style="font-weight: bold; color: #374151; margin-bottom: 10px; font-size: 14px;">
-        📖 今日推薦複習單字：
+        📖 本日交錯混合複習單字：
       </div>
 
       <div id="daily-words-container" style="max-height: 300px; overflow-y: auto;">
         <!-- 動態產生 -->
       </div>
 
-      <!-- 新增：真正寫入每日資料夾的按鈕 -->
       <button onclick="saveTodayPlanToCloud()" class="btn-success">
-        📥 將這些單字加入「🎯 今日背誦計畫」資料夾
+        📥 將此天進度加入「🎯 今日背誦計畫」資料夾
       </button>
     </div>
 
