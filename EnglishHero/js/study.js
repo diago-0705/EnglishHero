@@ -57,51 +57,53 @@ function fetchAllWords(uid) {
     });
 }
 
-// 渲染資料夾清單：加入置頂排序與匯入按鈕
+// 渲染資料夾清單：強制包含常駐資料夾並絕對置頂
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
   currentFolderForManagement = "";
 
   const folderMap = {};
+  
+  // 確保兩個常駐資料夾即使裡面沒單字也會被初始化顯示
+  folderMap["🎯 今日背誦計畫"] = [];
+  folderMap["📦 已經背過的單字"] = [];
+
   allWords.forEach(w => {
-    if (!folderMap[w.folder]) folderMap[w.folder] = [];
-    folderMap[w.folder].push(w);
+    const fName = w.folder || "未分類";
+    if (!folderMap[fName]) folderMap[fName] = [];
+    folderMap[fName].push(w);
   });
 
   let folders = Object.keys(folderMap);
 
-  // 🌟 核心置頂排序：讓「🎯 今日背誦計畫」排第一，「📦 已經背過的單字」排第二
+  // 🌟 絕對置頂排序：「🎯 今日背誦計畫」第一，「📦 已經背過的單字」第二
   folders.sort((a, b) => {
-    if (a.includes("🎯")) return -1;
-    if (b.includes("🎯")) return 1;
-    if (a.includes("📦")) return -1;
-    if (b.includes("📦")) return 1;
+    if (a === "🎯 今日背誦計畫") return -1;
+    if (b === "🎯 今日背誦計畫") return 1;
+    if (a === "📦 已經背過的單字") return -1;
+    if (b === "📦 已經背過的單字") return 1;
     return a.localeCompare(b);
   });
 
   let html = "";
-  if (folders.length === 0) {
-    html += `<p style="text-align: center; color: #666; padding: 10px 0 20px 0;">目前沒有任何單字，快去新增單字吧！</p>`;
-  } else {
-    folders.forEach((folderName, index) => {
-      const count = folderMap[folderName].length;
-      html += `
-        <div class="folder-wrapper">
-          <div class="folder-item" onclick="startStudy('${folderName}')">
-            <div class="folder-info">
-              <h3>📁 ${folderName}</h3>
-              <p>共 ${count} 個單字 (點擊開始背單字)</p>
-            </div>
-            
-            <div class="dots-container" onclick="event.stopPropagation()">
-              <button class="dots-btn" id="dots-btn-${index}" onclick="toggleFolderDropdown(event, '${folderName}', '${index}')">⚙️</button>
-            </div>
+  folders.forEach((folderName, index) => {
+    const count = folderMap[folderName].length;
+    html += `
+      <div class="folder-wrapper">
+        <div class="folder-item" onclick="startStudy('${folderName}')">
+          <div class="folder-info">
+            <h3>📁 ${folderName}</h3>
+            <p>共 ${count} 個單字 (點擊開始背單字)</p>
+          </div>
+          
+          <div class="dots-container" onclick="event.stopPropagation()">
+            <button class="dots-btn" id="dots-btn-${index}" onclick="toggleFolderDropdown(event, '${folderName}', '${index}')">⚙️</button>
           </div>
         </div>
-      `;
-    });
-  }
+      </div>
+    `;
+  });
 
   // 在資料夾清單最下方加入匯入按鈕與隱藏的 file input
   html += `
@@ -245,10 +247,15 @@ window.startStudy = function(folderName) {
   renderFlashcard();
 };
 
-// 渲染背單字卡片（加入「✅ 我已經會了」按鈕）
+// 渲染背單字卡片
 function renderFlashcard() {
   if (currentFolderWords.length === 0) {
-    containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾沒有單字。</p>`;
+    containerEl.innerHTML = `
+      <div style="text-align: center; color: #666; padding: 30px;">
+        <p>這個資料夾目前沒有任何單字。</p>
+        <button onclick="fetchAllWords(currentUser.uid)" style="margin-top: 10px; padding: 8px 16px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">返回資料夾列表</button>
+      </div>
+    `;
     return;
   }
 
@@ -331,7 +338,7 @@ window.markAsLearned = async function() {
 
 if (btnBackFolders) {
   btnBackFolders.addEventListener("click", () => {
-    fetchAllWords(currentUser.uid); // 重新從雲端抓取最新資料並渲染列表
+    fetchAllWords(currentUser.uid);
   });
 }
 
@@ -343,7 +350,12 @@ window.openFolderEditModal = function(folderName) {
   btnBackFolders.style.display = "block";
 
   if (targetWords.length === 0) {
-    containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾裡沒有單字可修改。</p>`;
+    containerEl.innerHTML = `
+      <div style="text-align: center; color: #666; padding: 20px;">
+        <p>這個資料夾裡沒有單字可修改。</p>
+        <button onclick="fetchAllWords(currentUser.uid)" style="margin-top: 10px; padding: 8px 16px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">返回資料夾列表</button>
+      </div>
+    `;
     return;
   }
 
@@ -364,6 +376,11 @@ window.openFolderEditModal = function(folderName) {
     `;
   });
   html += `</div>`;
+  html += `
+    <div style="margin-top: 15px; text-align: center;">
+      <button onclick="fetchAllWords(currentUser.uid)" style="padding: 8px 16px; background: #64748b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">⬅️ 返回資料夾列表</button>
+    </div>
+  `;
 
   containerEl.innerHTML = html;
 };
