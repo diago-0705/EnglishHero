@@ -57,7 +57,7 @@ function fetchAllWords(uid) {
     });
 }
 
-// 渲染資料夾清單：最下方加入「📥 匯入資料」按鈕
+// 渲染資料夾清單：加入置頂排序與匯入按鈕
 function renderFolderList() {
   pageTitleEl.textContent = "📁 我的單字資料夾";
   btnBackFolders.style.display = "none";
@@ -69,7 +69,16 @@ function renderFolderList() {
     folderMap[w.folder].push(w);
   });
 
-  const folders = Object.keys(folderMap);
+  let folders = Object.keys(folderMap);
+
+  // 🌟 核心置頂排序：讓「🎯 今日背誦計畫」排第一，「📦 已經背過的單字」排第二
+  folders.sort((a, b) => {
+    if (a.includes("🎯")) return -1;
+    if (b.includes("🎯")) return 1;
+    if (a.includes("📦")) return -1;
+    if (b.includes("📦")) return 1;
+    return a.localeCompare(b);
+  });
 
   let html = "";
   if (folders.length === 0) {
@@ -105,7 +114,7 @@ function renderFolderList() {
   containerEl.innerHTML = html;
 }
 
-// 匯出特定資料夾成 JSON 檔案（放在齒輪管理選單內）
+// 匯出特定資料夾成 JSON 檔案
 window.exportFolderData = function(folderName) {
   const targetWords = allWords.filter(w => w.folder === folderName);
   if (targetWords.length === 0) {
@@ -178,7 +187,7 @@ window.importData = function(event) {
   reader.readAsText(file);
 };
 
-// 資料夾管理選單（加入「📤 匯出資料夾」選項）
+// 資料夾管理選單
 window.toggleFolderDropdown = function(event, folderName, index) {
   event.stopPropagation();
   
@@ -236,6 +245,7 @@ window.startStudy = function(folderName) {
   renderFlashcard();
 };
 
+// 渲染背單字卡片（加入「✅ 我已經會了」按鈕）
 function renderFlashcard() {
   if (currentFolderWords.length === 0) {
     containerEl.innerHTML = `<p style="text-align: center; color: #666;">這個資料夾沒有單字。</p>`;
@@ -262,10 +272,18 @@ function renderFlashcard() {
       </div>
     </div>
 
+    <!-- 上下張切換按鈕區 -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
       <button onclick="prevCard()" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">⬅️ 上一張</button>
       <span style="font-size: 15px; font-weight: bold; color: #475569;">${currentIndex + 1} / ${currentFolderWords.length}</span>
       <button onclick="nextCard()" style="padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">下一張 ➡️</button>
+    </div>
+
+    <!-- 新增：「我已經會了」按鈕區 -->
+    <div style="margin-top: 12px; text-align: center;">
+      <button onclick="markAsLearned()" style="width: 100%; padding: 12px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(16,185,129,0.2);">
+        ✅ 我已經會了 (加入「📦 已經背過的單字」)
+      </button>
     </div>
   `;
 }
@@ -289,9 +307,31 @@ window.nextCard = function() {
   renderFlashcard();
 };
 
+// 點擊「我已經會了」：複製一份到「📦 已經背過的單字」資料夾，不覆蓋原資料
+window.markAsLearned = async function() {
+  const word = currentFolderWords[currentIndex];
+  if (!word) return;
+
+  try {
+    const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
+    
+    await userWordsRef.add({
+      en: word.en,
+      pos: word.pos || "n.",
+      ch: word.ch,
+      folder: "📦 已經背過的單字"
+    });
+
+    alert(`太棒了！「${word.en}」已成功加入「📦 已經背過的單字」！`);
+    nextCard(); // 自動跳轉到下一張卡片
+  } catch (err) {
+    alert("操作失敗：" + err.message);
+  }
+};
+
 if (btnBackFolders) {
   btnBackFolders.addEventListener("click", () => {
-    renderFolderList();
+    fetchAllWords(currentUser.uid); // 重新從雲端抓取最新資料並渲染列表
   });
 }
 
