@@ -20,11 +20,11 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2086");
+    window.location.replace("login.html?v=2089");
   }
 });
 
-// 直接使用你 GitHub Pages 的完整絕對網址
+// 精選題庫路徑設定（包含新增的 LiveABC 9月份）
 const PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
@@ -33,6 +33,10 @@ const PRESET_CONFIGS = {
   cap_exam: {
     folderName: "🔥 國中會考高頻單",
     fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/cap.json"
+  },
+  liveabc_sep: {
+    folderName: "📚 LiveABC 9月份",
+    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/LiveABC 9月份.json"
   }
 };
 
@@ -41,13 +45,8 @@ window.importPreset = async function(presetKey) {
   if (!config) return;
 
   try {
-    console.log("正在請求絕對網址：", config.fileUrl);
     const response = await fetch(config.fileUrl);
-    
-    if (!response.ok) {
-      throw new Error(`伺服器回應失敗，狀態碼：${response.status}`);
-    }
-
+    if (!response.ok) throw new Error("無法載入題庫檔案，請檢查路徑");
     const words = await response.json();
 
     if (!confirm(`確定要將「${config.folderName}」共 ${words.length} 個單字加入您的資料庫嗎？`)) {
@@ -70,7 +69,6 @@ window.importPreset = async function(presetKey) {
     await batch.commit();
     alert(`成功加入「${config.folderName}」！`);
   } catch (err) {
-    console.error(err);
-    alert("絕對路徑載入失敗：" + err.message);
+    alert("加入題庫失敗：" + err.message);
   }
 };
