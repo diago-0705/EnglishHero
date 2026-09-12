@@ -1,1 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>背單字計畫 - English Hero</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+  
+  <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl p-6 mt-6">
+    <h1 class="text-2xl font-extrabold text-gray-800 mb-4 text-center">🎯 打造您的背單字計畫</h1>
+    
+    <!-- 步驟一：選擇資料夾 -->
+    <div class="mb-4">
+      <label class="block text-gray-700 font-bold mb-2">1. 選擇要背誦的資料夾：</label>
+      <select id="folder-select" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500">
+        <option value="">載入資料夾中...</option>
+      </select>
+    </div>
 
+    <!-- 步驟二：設定天數 -->
+    <div class="mb-6">
+      <label class="block text-gray-700 font-bold mb-2">2. 預計幾天內背完：</label>
+      <input type="number" id="target-days" min="1" value="7" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="例如：7天">
+    </div>
+
+    <button onclick="generatePlan()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow transition mb-6">
+      🚀 生成今日背誦清單
+    </button>
+
+    <!-- 計畫結果展示區 -->
+    <div id="plan-result" class="hidden border-t pt-4">
+      <h2 id="plan-title" class="text-lg font-bold text-indigo-600 mb-2"></h2>
+      <div id="daily-words-container" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+        <!-- 動態產生今日要背的單字 -->
+      </div>
+    </div>
+
+    <div class="mt-6 text-center">
+      <a href="index.html" class="text-indigo-600 hover:underline font-medium">🏠 返回首頁</a>
+    </div>
+  </div>
+
+  <!-- Firebase 相關 SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <script src="js/plan.js"></script>
+</body>
+</html>
