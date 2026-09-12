@@ -74,13 +74,13 @@ window.generatePlan = async function() {
   const dailyCount = Math.ceil(folderWords.length / targetDays);
   const todayBatch = folderWords.slice(0, dailyCount);
 
-  // 固定使用這個常駐名稱
+  // 固定使用這個常駐名稱（隔天自動更新重置）
   const planFolderName = "🎯 今日背誦計畫";
 
   try {
     const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
 
-    // 1. 先取得舊的「🎯 今日背誦計畫」單字並清空
+    // 1. 先取得舊的「🎯 今日背誦計畫」單字並安全清空
     const snapshot = await userWordsRef.where("folder", "==", planFolderName).get();
     
     if (!snapshot.empty) {
@@ -89,7 +89,7 @@ window.generatePlan = async function() {
       for (const doc of snapshot.docs) {
         deleteBatch.delete(doc.ref);
         count++;
-        if (count >= 400) { // 確保不超過 Firestore 500 筆限制
+        if (count >= 400) {
           await deleteBatch.commit();
           deleteBatch = db.batch();
           count = 0;
