@@ -4,64 +4,157 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>背單字計畫 - English Hero</title>
-  <!-- 引入 Tailwind CSS 確保排版和格線精緻 -->
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 讓 plan 頁面完美對齊你原本網站的卡片與表單風格 */
+    body {
+      background-color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .plan-container {
+      max-width: 500px;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 30px;
+      margin-top: 20px;
+    }
+    .nav-bar {
+      max-width: 500px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .nav-bar a {
+      color: #4f46e5;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: bold;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      font-size: 16px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-control:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    .btn-primary {
+      width: 100%;
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+    .plan-result {
+      margin-top: 25px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 20px;
+    }
+    .plan-title-box {
+      background-color: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #3730a3;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .word-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .word-en {
+      font-weight: bold;
+      color: #1f2937;
+      font-size: 18px;
+    }
+    .word-pos {
+      color: #6b7280;
+      font-size: 14px;
+      margin-left: 6px;
+    }
+    .word-ch {
+      color: #4b5563;
+      font-weight: 500;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-100 min-h-screen flex flex-col items-center py-10 px-4">
+<body>
 
-  <!-- 頂部標題列 -->
-  <div class="max-w-xl w-full flex justify-between items-center mb-6">
-    <a href="index.html" class="flex items-center text-indigo-600 hover:text-indigo-800 font-semibold transition">
-      <span class="mr-1">←</span> 返回首頁
-    </a>
-    <h1 class="text-xl font-extrabold text-gray-800">🎯 智慧背單字計畫</h1>
-    <div class="w-16"></div> <!-- 佔位平衡 -->
+  <div class="nav-bar">
+    <a href="index.html">← 返回首頁</a>
+    <span style="font-weight: bold; color: #1f2937;">🎯 智慧背單字計畫</span>
+    <div style="width: 60px;"></div>
   </div>
 
-  <!-- 主卡片容器 -->
-  <div class="max-w-xl w-full bg-white rounded-3xl shadow-xl border border-indigo-50 p-6 md:p-8">
+  <div class="plan-container">
     
-    <!-- 設定表單區 -->
-    <div class="space-y-5">
-      <div>
-        <label class="block text-gray-700 font-bold mb-2 flex items-center">
-          <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full mr-2">步驟 1</span> 選擇要背誦的題庫資料夾
-        </label>
-        <select id="folder-select" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition text-gray-700 font-medium">
-          <option value="">載入資料夾中...</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-gray-700 font-bold mb-2 flex items-center">
-          <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full mr-2">步驟 2</span> 預計在幾天內背完
-        </label>
-        <div class="relative">
-          <input type="number" id="target-days" min="1" value="7" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition text-gray-700 font-medium">
-          <span class="absolute right-4 top-4 text-gray-400 font-medium">天</span>
-        </div>
-      </div>
-
-      <button onclick="generatePlan()" class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 flex items-center justify-center space-x-2">
-        <span>🚀</span>
-        <span>生成今日背誦計畫</span>
-      </button>
+    <div class="form-group">
+      <label>1. 選擇要背誦的題庫資料夾：</label>
+      <select id="folder-select" class="form-control">
+        <option value="">載入資料夾中...</option>
+      </select>
     </div>
 
+    <div class="form-group">
+      <label>2. 預計在幾天內背完：</label>
+      <input type="number" id="target-days" min="1" value="7" class="form-control" placeholder="例如：7">
+    </div>
+
+    <button onclick="generatePlan()" class="btn-primary">
+      🚀 生成今日背誦計畫
+    </button>
+
     <!-- 計畫結果展示區 -->
-    <div id="plan-result" class="hidden mt-8 pt-6 border-t border-gray-100">
-      <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 mb-5 text-center">
-        <h2 id="plan-title" class="text-base font-bold text-indigo-900"></h2>
+    <div id="plan-result" class="plan-result hidden">
+      <div id="plan-title" class="plan-title-box"></div>
+      
+      <div style="font-weight: bold; color: #374151; margin-bottom: 10px; font-size: 14px;">
+        📖 今日推薦複習單字：
       </div>
 
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="font-bold text-gray-700 text-sm">📖 今日推薦複習單字</h3>
-        <span class="text-xs text-gray-400">系統自動均分</span>
-      </div>
-
-      <!-- 單字列表 -->
-      <div id="daily-words-container" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+      <div id="daily-words-container" style="max-height: 350px; overflow-y: auto;">
         <!-- 動態產生 -->
       </div>
     </div>
