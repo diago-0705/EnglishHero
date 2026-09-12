@@ -48,7 +48,7 @@
       <button class="btn-add-preset" onclick="importPreset('cap_exam')">➕ 加入題庫</button>
     </div>
 
-<!-- LiveABC 9月份題庫按鈕 -->
+    <!-- LiveABC 9月份題庫按鈕 -->
     <div class="preset-card">
       <div class="preset-info">
         <h3>📚 LiveABC 9月份</h3>
@@ -56,18 +56,14 @@
       </div>
       <button class="btn-add-preset" onclick="importPreset('liveabc_sep')">➕ 加入題庫</button>
     </div>
-  <button onclick="importPreset('liveabc_sep')" class="btn-add">
-    ➕ 加入題庫
-  </button>
-</div>
   </div>
 </div>
 
 <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-  <!-- 必須要有這行才能讀到 importPreset -->
-  <script src="js/preset.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<!-- 引入 JS 邏輯 -->
+<script src="js/preset.js"></script>
 </body>
 </html>
