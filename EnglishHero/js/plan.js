@@ -22,7 +22,7 @@ auth.onAuthStateChanged((user) => {
     currentUser = user;
     fetchUserFoldersAndWords();
   } else {
-    window.location.replace("login.html?v=2088");
+    window.location.replace("login.html?v=2102");
   }
 });
 
@@ -52,7 +52,7 @@ async function fetchUserFoldersAndWords() {
 }
 
 // 產生平均分配的背誦計畫
-window.generatePlan = function() {
+window.generatePlan = async function() {
   const selectedFolder = document.getElementById("folder-select").value;
   const targetDays = parseInt(document.getElementById("target-days").value);
 
@@ -65,37 +65,86 @@ window.generatePlan = function() {
     return;
   }
 
-  // 篩選出該資料夾的所有單字
   const folderWords = allUserWords.filter(w => w.folder === selectedFolder);
   if (folderWords.length === 0) {
     alert("此資料夾中沒有任何單字！");
     return;
   }
 
-  // 計算每天平均分配的數量
   const dailyCount = Math.ceil(folderWords.length / targetDays);
-  
-  // 為了示範，我們抓取「今天」應該要背的第一批單字（取前 dailyCount 個）
-  // 實務上也可以搭配 LocalStorage 記錄已經背到第幾天
   const todayBatch = folderWords.slice(0, dailyCount);
 
-  // 渲染畫面
-  document.getElementById("plan-result").classList.remove("hidden");
-  document.getElementById("plan-title").innerText = 
-    `📖 「${selectedFolder}」總共 ${folderWords.length} 個字，預計 ${targetDays} 天背完。今日需背進度（第 1 天）：共 ${todayBatch.length} 個字`;
+  // 固定使用這個常駐名稱
+  const planFolderName = "🎯 今日背誦計畫";
 
-  const container = document.getElementById("daily-words-container");
-  container.innerHTML = "";
+  try {
+    const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
 
-  todayBatch.forEach((w, index) => {
-    container.innerHTML += `
-      <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
-        <div>
-          <span class="font-bold text-gray-800 text-lg">${index + 1}. ${w.en}</span>
-          <span class="text-sm text-indigo-500 ml-2">(${w.pos || 'n.'})</span>
+    // 1. 先取得舊的「🎯 今日背誦計畫」單字並清空
+    const snapshot = await userWordsRef.where("folder", "==", planFolderName).get();
+    
+    if (!snapshot.empty) {
+      let deleteBatch = db.batch();
+      let count = 0;
+      for (const doc of snapshot.docs) {
+        deleteBatch.delete(doc.ref);
+        count++;
+        if (count >= 400) { // 確保不超過 Firestore 500 筆限制
+          await deleteBatch.commit();
+          deleteBatch = db.batch();
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await deleteBatch.commit();
+      }
+    }
+
+    // 2. 將今天的份量寫入「🎯 今日背誦計畫」
+    let writeBatch = db.batch();
+    let writeCount = 0;
+
+    for (const w of todayBatch) {
+      const newDocRef = userWordsRef.doc();
+      writeBatch.set(newDocRef, {
+        en: w.en,
+        pos: w.pos || "n.",
+        ch: w.ch,
+        folder: planFolderName
+      });
+      writeCount++;
+      if (writeCount >= 400) {
+        await writeBatch.commit();
+        writeBatch = db.batch();
+        writeCount = 0;
+      }
+    }
+    if (writeCount > 0) {
+      await writeBatch.commit();
+    }
+
+    // 3. 渲染畫面
+    document.getElementById("plan-result").classList.remove("hidden");
+    document.getElementById("plan-title").innerText = 
+      `📖 已成功載入「${planFolderName}」！共 ${todayBatch.length} 個單字，今天請完成這批練習。`;
+
+    const container = document.getElementById("daily-words-container");
+    container.innerHTML = "";
+
+    todayBatch.forEach((w, index) => {
+      container.innerHTML += `
+        <div class="word-item">
+          <div>
+            <span class="word-en">${index + 1}. ${w.en}</span>
+            <span class="word-pos">(${w.pos || 'n.'})</span>
+          </div>
+          <span class="word-ch">${w.ch}</span>
         </div>
-        <span class="text-gray-600 font-medium">${w.ch}</span>
-      </div>
-    `;
-  });
+      `;
+    });
+
+    alert(`成功更新「${planFolderName}」！`);
+  } catch (err) {
+    alert("生成計畫失敗：" + err.message);
+  }
 };
