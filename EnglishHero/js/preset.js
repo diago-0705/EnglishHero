@@ -36,7 +36,7 @@ const PRESET_CONFIGS = {
   },
   liveabc_sep: {
     folderName: "📚 LiveABC 9月份",
-    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/LiveABC 9月份.json"
+    fileUrl: "https://joe-joe12.github.io/EnglishHero/EnglishHero/JSON/liveabc_sep.json"
   }
 };
 
