@@ -16,13 +16,14 @@ const db = firebase.firestore();
 
 let currentUser = null;
 let allUserWords = [];
+let currentTodayBatch = []; // 暫存預覽的今日單字
 
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
     fetchUserFoldersAndWords();
   } else {
-    window.location.replace("login.html?v=2102");
+    window.location.replace("login.html?v=2103");
   }
 });
 
@@ -51,8 +52,8 @@ async function fetchUserFoldersAndWords() {
   }
 }
 
-// 產生平均分配的背誦計畫
-window.generatePlan = async function() {
+// 步驟一：預覽背誦計畫
+window.generatePlan = function() {
   const selectedFolder = document.getElementById("folder-select").value;
   const targetDays = parseInt(document.getElementById("target-days").value);
 
@@ -72,15 +73,42 @@ window.generatePlan = async function() {
   }
 
   const dailyCount = Math.ceil(folderWords.length / targetDays);
-  const todayBatch = folderWords.slice(0, dailyCount);
+  currentTodayBatch = folderWords.slice(0, dailyCount);
 
-  // 固定使用這個常駐名稱（隔天自動更新重置）
+  // 渲染畫面供預覽
+  document.getElementById("plan-result").classList.remove("hidden");
+  document.getElementById("plan-title").innerText = 
+    `📖 預覽今日份量：共 ${currentTodayBatch.length} 個單字，確認後請點擊下方按鈕加入資料夾。`;
+
+  const container = document.getElementById("daily-words-container");
+  container.innerHTML = "";
+
+  currentTodayBatch.forEach((w, index) => {
+    container.innerHTML += `
+      <div class="word-item">
+        <div>
+          <span class="word-en">${index + 1}. ${w.en}</span>
+          <span class="word-pos">(${w.pos || 'n.'})</span>
+        </div>
+        <span class="word-ch">${w.ch}</span>
+      </div>
+    `;
+  });
+};
+
+// 步驟二：點擊下方按鈕後，真正寫入雲端「🎯 今日背誦計畫」資料夾
+window.saveTodayPlanToCloud = async function() {
+  if (currentTodayBatch.length === 0) {
+    alert("目前沒有可加入的計畫單字！");
+    return;
+  }
+
   const planFolderName = "🎯 今日背誦計畫";
 
   try {
     const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
 
-    // 1. 先取得舊的「🎯 今日背誦計畫」單字並安全清空
+    // 1. 先取得舊的「🎯 今日背誦計畫」單字並安全清空（達到隔天自動重置效果）
     const snapshot = await userWordsRef.where("folder", "==", planFolderName).get();
     
     if (!snapshot.empty) {
@@ -104,7 +132,7 @@ window.generatePlan = async function() {
     let writeBatch = db.batch();
     let writeCount = 0;
 
-    for (const w of todayBatch) {
+    for (const w of currentTodayBatch) {
       const newDocRef = userWordsRef.doc();
       writeBatch.set(newDocRef, {
         en: w.en,
@@ -123,28 +151,8 @@ window.generatePlan = async function() {
       await writeBatch.commit();
     }
 
-    // 3. 渲染畫面
-    document.getElementById("plan-result").classList.remove("hidden");
-    document.getElementById("plan-title").innerText = 
-      `📖 已成功載入「${planFolderName}」！共 ${todayBatch.length} 個單字，今天請完成這批練習。`;
-
-    const container = document.getElementById("daily-words-container");
-    container.innerHTML = "";
-
-    todayBatch.forEach((w, index) => {
-      container.innerHTML += `
-        <div class="word-item">
-          <div>
-            <span class="word-en">${index + 1}. ${w.en}</span>
-            <span class="word-pos">(${w.pos || 'n.'})</span>
-          </div>
-          <span class="word-ch">${w.ch}</span>
-        </div>
-      `;
-    });
-
-    alert(`成功更新「${planFolderName}」！`);
+    alert(`🎉 成功將今日份的 ${currentTodayBatch.length} 個單字加入「${planFolderName}」資料夾！`);
   } catch (err) {
-    alert("生成計畫失敗：" + err.message);
+    alert("加入資料夾失敗：" + err.message);
   }
 };
