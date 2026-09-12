@@ -16,18 +16,18 @@ const db = firebase.firestore();
 
 let currentUser = null;
 let allUserWords = [];
-let currentTodayBatch = []; // 暫存預覽的今日單字
+let currentTodayBatch = []; 
 
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
     fetchUserFoldersAndWords();
   } else {
-    window.location.replace("login.html?v=2103");
+    window.location.replace("login.html?v=2104");
   }
 });
 
-// 取得使用者的所有單字與不重複資料夾
+// 取得使用者的所有單字與不重複資料夾，並加入「全部合併」選項
 async function fetchUserFoldersAndWords() {
   try {
     const snapshot = await db.collection("users").doc(currentUser.uid).collection("words").get();
@@ -37,11 +37,13 @@ async function fetchUserFoldersAndWords() {
     snapshot.forEach(doc => {
       const data = doc.data();
       allUserWords.push({ id: doc.id, ...data });
-      if (data.folder) foldersSet.add(data.folder);
+      if (data.folder && !data.folder.includes("🎯") && !data.folder.includes("📦")) {
+        foldersSet.add(data.folder);
+      }
     });
 
     const folderSelect = document.getElementById("folder-select");
-    folderSelect.innerHTML = '<option value="">-- 請選擇資料夾 --</option>';
+    folderSelect.innerHTML = '<option value="ALL_FOLDERS">🌐 【全部資料夾交錯合併】</option>';
     
     foldersSet.forEach(folder => {
       folderSelect.innerHTML += `<option value="${folder}">${folder}</option>`;
@@ -52,36 +54,67 @@ async function fetchUserFoldersAndWords() {
   }
 }
 
-// 步驟一：預覽背誦計畫
+// 步驟一：預覽背誦計畫（支援跨資料夾交錯混合分配）
 window.generatePlan = function() {
   const selectedFolder = document.getElementById("folder-select").value;
   const targetDays = parseInt(document.getElementById("target-days").value);
+  const targetDayNum = parseInt(document.getElementById("current-day").value);
 
-  if (!selectedFolder) {
-    alert("請先選擇一個資料夾！");
-    return;
-  }
   if (!targetDays || targetDays <= 0) {
-    alert("請輸入有效的天數！");
+    alert("請輸入有效總天數！");
+    return;
+  }
+  if (!targetDayNum || targetDayNum <= 0 || targetDayNum > targetDays) {
+    alert("請輸入有效的檢視天數（不可大於總天數）！");
     return;
   }
 
-  const folderWords = allUserWords.filter(w => w.folder === selectedFolder);
-  if (folderWords.length === 0) {
-    alert("此資料夾中沒有任何單字！");
+  // 決定目標單字來源（全部合併或是指定單一資料夾）
+  let targetWords = [];
+  let sourceFolders = [];
+
+  if (selectedFolder === "ALL_FOLDERS") {
+    // 排除系統專用資料夾
+    targetWords = allUserWords.filter(w => !w.folder.includes("🎯") && !w.folder.includes("📦"));
+    // 找出所有參與的資料夾名稱
+    sourceFolders = [...new Set(targetWords.map(w => w.folder))];
+  } else {
+    targetWords = allUserWords.filter(w => w.folder === selectedFolder);
+    sourceFolders = [selectedFolder];
+  }
+
+  if (targetWords.length === 0) {
+    alert("所選範圍內沒有任何單字！");
     return;
   }
 
-  const dailyCount = Math.ceil(folderWords.length / targetDays);
-  currentTodayBatch = folderWords.slice(0, dailyCount);
+  // 核心演算法：對每個資料夾內部先做分組，然後做「交錯混合（Round-Robin）」分配
+  // 這樣能確保每個資料夾的單字平均分到每一天（例如 Day 1 有 a 和 c，Day 2 有 b 和 d）
+  let dayBuckets = Array.from({ length: targetDays }, () => []);
+
+  sourceFolders.forEach(folderName => {
+    const folderWords = targetWords.filter(w => w.folder === folderName);
+    folderWords.forEach((word, index) => {
+      const assignedDayIndex = index % targetDays; // 依序循環分配到第 0 ~ (targetDays-1) 天
+      dayBuckets[assignedDayIndex].push(word);
+    });
+  });
+
+  // 取得使用者選定的那一天（陣列從 0 開始，所以要減 1）
+  currentTodayBatch = dayBuckets[targetDayNum - 1] || [];
 
   // 渲染畫面供預覽
   document.getElementById("plan-result").classList.remove("hidden");
   document.getElementById("plan-title").innerText = 
-    `📖 預覽今日份量：共 ${currentTodayBatch.length} 個單字，確認後請點擊下方按鈕加入資料夾。`;
+    `📖 Day ${targetDayNum} 混合進度預覽：共 ${currentTodayBatch.length} 個單字（包含跨資料夾交錯分配）。`;
 
   const container = document.getElementById("daily-words-container");
   container.innerHTML = "";
+
+  if (currentTodayBatch.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: #6b7280; padding: 15px;">這一天沒有分配到單字！</div>`;
+    return;
+  }
 
   currentTodayBatch.forEach((w, index) => {
     container.innerHTML += `
@@ -89,6 +122,7 @@ window.generatePlan = function() {
         <div>
           <span class="word-en">${index + 1}. ${w.en}</span>
           <span class="word-pos">(${w.pos || 'n.'})</span>
+          <span style="font-size: 11px; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">${w.folder}</span>
         </div>
         <span class="word-ch">${w.ch}</span>
       </div>
@@ -96,7 +130,7 @@ window.generatePlan = function() {
   });
 };
 
-// 步驟二：點擊下方按鈕後，真正寫入雲端「🎯 今日背誦計畫」資料夾
+// 步驟二：點擊寫入雲端「🎯 今日背誦計畫」資料夾
 window.saveTodayPlanToCloud = async function() {
   if (currentTodayBatch.length === 0) {
     alert("目前沒有可加入的計畫單字！");
@@ -108,7 +142,7 @@ window.saveTodayPlanToCloud = async function() {
   try {
     const userWordsRef = db.collection("users").doc(currentUser.uid).collection("words");
 
-    // 1. 先取得舊的「🎯 今日背誦計畫」單字並安全清空（達到隔天自動重置效果）
+    // 1. 先安全清空舊的「🎯 今日背誦計畫」
     const snapshot = await userWordsRef.where("folder", "==", planFolderName).get();
     
     if (!snapshot.empty) {
@@ -136,7 +170,7 @@ window.saveTodayPlanToCloud = async function() {
       const newDocRef = userWordsRef.doc();
       writeBatch.set(newDocRef, {
         en: w.en,
-        pos: w.pos || "n.",
+        pos: w.pos || "n. ",
         ch: w.ch,
         folder: planFolderName
       });
@@ -151,7 +185,7 @@ window.saveTodayPlanToCloud = async function() {
       await writeBatch.commit();
     }
 
-    alert(`🎉 成功將今日份的 ${currentTodayBatch.length} 個單字加入「${planFolderName}」資料夾！`);
+    alert(`🎉 成功將這天的 ${currentTodayBatch.length} 個交錯混合單字加入「${planFolderName}」資料夾！`);
   } catch (err) {
     alert("加入資料夾失敗：" + err.message);
   }
