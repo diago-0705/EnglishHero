@@ -20,19 +20,19 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
   } else {
-    window.location.replace("login.html?v=2080");
+    window.location.replace("login.html?v=2082");
   }
 });
 
-// 對應你實際放在 GitHub 上的 JSON 檔案路徑
+// 精選題庫路徑設定（完全對應大寫的 JSON 資料夾與 cap.json）
 const PRESET_CONFIGS = {
   junior_2000: {
     folderName: "📖 國中基礎2000單",
-    fileUrl: "json/junior_2000.json"
+    fileUrl: "JSON/junior_2000.json"
   },
   cap_exam: {
     folderName: "🔥 國中會考高頻單",
-    fileUrl: "json/cap_exam.json" // 如果你的檔名不同，這裡可以隨時更改
+    fileUrl: "JSON/cap.json" // 指向正確的大寫資料夾與檔名
   }
 };
 
